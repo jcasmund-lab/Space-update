@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.4
+# SPACE UPDATE v0.4.1
 # 16:9 information display for 24–40" monitors
 # ============================================================
 
@@ -22,7 +22,7 @@ st.set_page_config(
 
 LL2 = "https://ll.thespacedevs.com/2.3.0"
 CELESTRAK_GP = "https://celestrak.org/NORAD/elements/gp.php"
-HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.4"}
+HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.4.1 (Streamlit wall display)"}
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 
 ACTOR_COLOURS = {
@@ -124,142 +124,162 @@ def orbit_group(launch):
 # API DATA
 # ============================================================
 
+
+def _request_json(url, params, timeout=8):
+    """One HTTP request. Raise on failure so Streamlit never caches a failed result."""
+    r = requests.get(url, params=params, headers=HEADERS, timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
 @st.cache_data(ttl=900, show_spinner=False)
-def get_recent_launches(days=7):
+def _recent_launches_cached(days=7):
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=days)
+
+    # First use the precise filtered request that worked in v0.3.
     params = {
         "format": "json",
-        "mode": "normal",
         "limit": 100,
         "ordering": "-net",
         "net__gte": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "net__lte": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "include_suborbital": "false",
     }
     try:
-        r = requests.get(f"{LL2}/launches/previous/", params=params, headers=HEADERS, timeout=20)
-        r.raise_for_status()
-        return r.json().get("results", []), True
+        payload = _request_json(f"{LL2}/launches/previous/", params, timeout=8)
+        return payload.get("results", [])
+    except Exception:
+        # Fallback: get the latest launches and filter locally.
+        payload = _request_json(
+            f"{LL2}/launches/previous/",
+            {"format": "json", "limit": 100, "ordering": "-net"},
+            timeout=8,
+        )
+        out = []
+        for launch in payload.get("results", []):
+            d = parse_dt(launch.get("net"))
+            if d and start <= d <= now:
+                out.append(launch)
+        return out
+
+
+def get_recent_launches(days=7):
+    try:
+        return _recent_launches_cached(days), True
     except Exception:
         return [], False
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def get_upcoming_launches(days=30):
+def _upcoming_launches_cached(days=30):
     now = datetime.now(timezone.utc)
     end = now + timedelta(days=days)
     params = {
         "format": "json",
-        "mode": "normal",
         "limit": 100,
         "ordering": "net",
         "net__gte": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "net__lte": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "include_suborbital": "false",
     }
     try:
-        r = requests.get(f"{LL2}/launches/upcoming/", params=params, headers=HEADERS, timeout=20)
-        r.raise_for_status()
-        return r.json().get("results", []), True
+        payload = _request_json(f"{LL2}/launches/upcoming/", params, timeout=8)
+        return payload.get("results", [])
+    except Exception:
+        payload = _request_json(
+            f"{LL2}/launches/upcoming/",
+            {"format": "json", "limit": 100, "ordering": "net"},
+            timeout=8,
+        )
+        out = []
+        for launch in payload.get("results", []):
+            d = parse_dt(launch.get("net"))
+            if d and now <= d <= end:
+                out.append(launch)
+        return out
+
+
+def get_upcoming_launches(days=30):
+    try:
+        return _upcoming_launches_cached(days), True
     except Exception:
         return [], False
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_ytd_launches():
-    now = datetime.now(timezone.utc)
-    start = datetime(now.year, 1, 1, tzinfo=timezone.utc)
+def _ytd_launches_cached():
+    """YTD is secondary data. Keep it bounded so it can never stall the screen."""
+    year = datetime.now(timezone.utc).year
+    url = f"{LL2}/launches/previous/"
     params = {
         "format": "json",
-        "mode": "normal",
         "limit": 100,
         "ordering": "-net",
-        "net__gte": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "net__lte": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "include_suborbital": "false",
+        "year": year,
     }
-    all_results = []
-    url = f"{LL2}/launches/previous/"
+    results = []
+    # At most four pages. Enough for a normal year without turning this into a crawler.
+    for _ in range(4):
+        payload = _request_json(url, params, timeout=7)
+        results.extend(payload.get("results", []))
+        url = payload.get("next")
+        params = None
+        if not url:
+            break
+    return results
+
+
+def get_ytd_launches():
     try:
-        while url and len(all_results) < 500:
-            r = requests.get(url, params=params if not all_results else None, headers=HEADERS, timeout=20)
-            r.raise_for_status()
-            payload = r.json()
-            all_results.extend(payload.get("results", []))
-            url = payload.get("next")
-            params = None
-        return all_results, True
+        return _ytd_launches_cached(), True
     except Exception:
-        return all_results, False
+        return [], False
 
 
 @st.cache_data(ttl=7200, show_spinner=False)
+def _celestrak_count_cached(query_type, value):
+    data = _request_json(
+        CELESTRAK_GP,
+        {query_type.upper(): value, "FORMAT": "JSON"},
+        timeout=4,
+    )
+    if not isinstance(data, list):
+        raise ValueError("Unexpected CelesTrak response")
+    return len(data)
+
+
 def celestrak_count(query_type, value):
-    """Count current GP records. Cache for two hours."""
     try:
-        r = requests.get(
-            CELESTRAK_GP,
-            params={query_type: value, "FORMAT": "JSON"},
-            headers=HEADERS,
-            timeout=20,
-        )
-        r.raise_for_status()
-        data = r.json()
-        return len(data) if isinstance(data, list) else None
+        return _celestrak_count_cached(query_type, value)
     except Exception:
         return None
 
 
 @st.cache_data(ttl=21600, show_spinner=False)
+def _catalogued_objects_cached(launch_designator):
+    data = _request_json(
+        CELESTRAK_GP,
+        {"INTDES": launch_designator, "FORMAT": "JSON"},
+        timeout=4,
+    )
+    if not isinstance(data, list):
+        raise ValueError("Unexpected CelesTrak response")
+    return len(data)
+
+
 def catalogued_objects_for_launch(launch_designator):
-    """
-    CelesTrak INTDES count for one launch designator.
-    This counts catalogued orbital objects linked to that launch designator.
-    """
     if not launch_designator:
         return None
     try:
-        r = requests.get(
-            CELESTRAK_GP,
-            params={"INTDES": launch_designator, "FORMAT": "JSON"},
-            headers=HEADERS,
-            timeout=20,
-        )
-        r.raise_for_status()
-        data = r.json()
-        return len(data) if isinstance(data, list) else None
+        return _catalogued_objects_cached(launch_designator)
     except Exception:
         return None
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_agency_logo(name):
-    """Return a dark-background-friendly logo URL when LL2 has one."""
-    try:
-        r = requests.get(
-            f"{LL2}/agencies/",
-            params={"format": "json", "search": name, "limit": 10},
-            headers=HEADERS,
-            timeout=20,
-        )
-        r.raise_for_status()
-        results = r.json().get("results", [])
-        if not results:
-            return None
-        # Prefer exact name match.
-        agency = next((x for x in results if (x.get("name") or "").lower() == name.lower()), results[0])
-        logo = agency.get("logo") or agency.get("social_logo")
-        if not logo:
-            return None
-        variants = logo.get("variants") or []
-        for variant in variants:
-            t = ((variant.get("type") or {}).get("name") or "").lower()
-            if "dark background" in t and variant.get("image_url"):
-                return variant["image_url"]
-        return logo.get("image_url")
-    except Exception:
-        return None
+def provider_logo_from_launch(launch):
+    """Use the logo already embedded in LL2 launch data; no extra API call."""
+    agency = launch.get("launch_service_provider") or {}
+    logo = agency.get("logo") or agency.get("social_logo") or {}
+    return logo.get("image_url")
 
 
 # ============================================================
@@ -373,7 +393,7 @@ def build_europe_actor_stats(recent, upcoming):
             "objects_unknown_launches": 0,
             "objects_estimated": False,
             "planned_30d": 0,
-            "logo": get_agency_logo(actor),
+            "logo": None,
         }
         for actor in EUROPEAN_LAUNCH_ACTORS
     }
@@ -388,7 +408,7 @@ def build_europe_actor_stats(recent, upcoming):
                 "objects_unknown_launches": 0,
                 "objects_estimated": False,
                 "planned_30d": 0,
-                "logo": get_agency_logo(actor),
+                "logo": None,
             }
 
     for launch in recent:
@@ -396,6 +416,8 @@ def build_europe_actor_stats(recent, upcoming):
         if not actor:
             continue
         stats[actor]["launches_7d"] += 1
+        if not stats[actor]["logo"]:
+            stats[actor]["logo"] = provider_logo_from_launch(launch)
         count, source = object_count_for_launch(launch)
         if count is None:
             stats[actor]["objects_unknown_launches"] += 1
@@ -408,6 +430,8 @@ def build_europe_actor_stats(recent, upcoming):
         actor = european_launch_actor(launch)
         if actor:
             stats[actor]["planned_30d"] += 1
+            if not stats[actor]["logo"]:
+                stats[actor]["logo"] = provider_logo_from_launch(launch)
 
     # Keep fixed actors + dynamic actors with any activity. Zero fixed rows stay visible.
     ordered = []
@@ -450,7 +474,7 @@ def europe_capability_stats(recent, upcoming, ytd):
 
     # European launch totals are launch events, not spacecraft.
     europe_launch_7d = sum(1 for x in recent if european_launch_actor(x))
-    europe_launch_ytd = sum(1 for x in ytd if european_launch_actor(x))
+    europe_launch_ytd = sum(1 for x in ytd if european_launch_actor(x)) if ytd is not None else None
     europe_plan_30d = sum(1 for x in upcoming if european_launch_actor(x))
 
     return [
@@ -478,7 +502,7 @@ def europe_capability_stats(recent, upcoming, ytd):
         {
             "name": "EUROPEAN LAUNCH",
             "change": europe_launch_7d,
-            "total": europe_launch_ytd,
+            "total": fmt(europe_launch_ytd),
             "planned": europe_plan_30d,
             "sub": "launches · total = year to date",
         },
@@ -516,6 +540,9 @@ html, body, [class*="css"] {font-family:Inter,"Segoe UI",Arial,sans-serif;}
 
 .actor-card {border-radius:12px; padding:9px 12px 8px; min-height:95px; background:linear-gradient(145deg,rgba(16,35,53,.98),rgba(8,20,31,.98)); border:1px solid rgba(111,145,174,.22); overflow:hidden; position:relative;}
 .actor-card:after {content:""; position:absolute; width:100px; height:100px; border-radius:50%; right:-45px; top:-52px; background:var(--accent); opacity:.09;}
+.actor-topline {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.actor-mainlogo {width:28px;height:28px;object-fit:contain;}
+.actor-mainfallback {width:28px;height:28px;border-radius:7px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:9px;font-weight:900;}
 .actor-name {font-size:11px; font-weight:850; letter-spacing:.12em; color:var(--accent);}
 .actor-big {font-size:clamp(30px,2.1vw,43px); font-weight:900; line-height:.95; margin-top:7px;}
 .actor-small {font-size:9px; color:#70889c; line-height:1.35; margin-top:3px;}
@@ -574,6 +601,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {background:linear-gradient(155d
 .launch-meta {font-size:8px; color:#9db1c1; margin-top:2px;}
 .launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(0,0,0,.58); color:#d6dce1; font-size:6px;}
 
+.source-warning {margin:.3rem 0 .15rem;padding:6px 9px;border-radius:8px;border:1px solid rgba(229,182,83,.35);background:rgba(229,182,83,.08);color:#d8b665;font-size:9px;letter-spacing:.06em;}
 .footerline {display:flex; justify-content:space-between; margin-top:5px; color:#40596d; font-size:7px; letter-spacing:.06em;}
 
 @media(max-width:1400px){
@@ -598,14 +626,21 @@ def section_header(title, note=""):
     )
 
 
-def render_actor_card(actor, launches24, launches7):
+def render_actor_card(actor, launches24, launches7, logo=None, data_ok=True):
     colour = ACTOR_COLOURS[actor]
+    value24 = launches24 if data_ok else "—"
+    value7 = launches7 if data_ok else "—"
+    if logo:
+        logo_html = f'<img class="actor-mainlogo" src="{esc(logo)}" alt="{esc(actor)}">'
+    else:
+        code = {"EUROPE":"EU","USA":"US","CHINA":"CN","RUSSIA":"RU","OTHER":"🌍"}[actor]
+        logo_html = f'<div class="actor-mainfallback">{code}</div>'
     st.markdown(
         f"""
         <div class="actor-card" style="--accent:{colour};border-top:3px solid {colour};">
-          <div class="actor-name">{actor}</div>
-          <div class="actor-big">{launches24}</div>
-          <div class="actor-small">LAUNCHES · 24H<br><strong>{launches7}</strong> · LAST 7 DAYS</div>
+          <div class="actor-topline"><div class="actor-name">{actor}</div>{logo_html}</div>
+          <div class="actor-big">{value24}</div>
+          <div class="actor-small">LAUNCHES · 24H<br><strong>{value7}</strong> · LAST 7 DAYS</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -820,7 +855,8 @@ def render_dashboard():
     ytd, ytd_ok = get_ytd_launches()
     now = datetime.now(LOCAL_TZ)
 
-    status = "LIVE" if recent_ok and upcoming_ok and ytd_ok else "PARTIAL DATA"
+    # Primary live status is launch activity. Catalogue/YTD are secondary feeds.
+    status = "LIVE" if recent_ok and upcoming_ok else "PARTIAL DATA"
     dot = '<span class="live-dot"></span>' if recent_ok else ""
 
     st.markdown(
@@ -832,6 +868,9 @@ def render_dashboard():
         """,
         unsafe_allow_html=True,
     )
+
+    if not recent_ok or not upcoming_ok:
+        st.markdown('<div class="source-warning">Launch Library is temporarily unavailable. Values are shown as — and the dashboard will retry automatically; no failed response is cached.</div>', unsafe_allow_html=True)
 
     # -------------------- Major actors --------------------
     section_header("NEW EVENTS BY MAJOR ACTOR", "AUTO · ORBITAL LAUNCH ACTIVITY · 24H / 7D")
@@ -845,27 +884,23 @@ def render_dashboard():
         if d and d >= now_utc - timedelta(hours=24):
             counts24[actor] += 1
 
+    actor_logos = {}
+    for launch in recent:
+        actor = major_actor(launch)
+        if actor not in actor_logos:
+            logo = provider_logo_from_launch(launch)
+            if logo:
+                actor_logos[actor] = logo
+
     cols = st.columns(5, gap="small")
     for col, actor in zip(cols, ["EUROPE", "USA", "CHINA", "RUSSIA", "OTHER"]):
         with col:
-            render_actor_card(actor, counts24[actor], counts7[actor])
+            render_actor_card(actor, counts24[actor], counts7[actor], actor_logos.get(actor), recent_ok)
 
     # -------------------- Main area --------------------
     left, middle, right = st.columns([1.12, 1.05, .83], gap="small")
 
-    with left:
-        with st.container(border=True):
-            st.markdown('<div class="accent-blue"></div><div class="panel-title">EUROPE · CAPABILITY PICTURE</div>', unsafe_allow_html=True)
-            caps = europe_capability_stats(recent, upcoming, ytd)
-            c1, c2 = st.columns(2, gap="small")
-            with c1:
-                render_capability_card(caps[0])
-                render_capability_card(caps[2])
-            with c2:
-                render_capability_card(caps[1])
-                render_capability_card(caps[3])
-            st.markdown('<div class="watchbar"><b>EUROPE · BUILDING / WATCH</b><span>IRIS² · GOVSATCOM · Ariane 6 · Vega-C · Spectrum · RFA One · Orbex Prime · Miura 5</span></div>', unsafe_allow_html=True)
-
+    # Fill the fast panels first so the wall display never looks empty while a secondary catalogue responds.
     with middle:
         with st.container(border=True):
             st.markdown('<div class="accent-green"></div><div class="panel-title">ORBITAL ACTIVITY · LAST 7 DAYS</div>', unsafe_allow_html=True)
@@ -877,6 +912,19 @@ def render_dashboard():
         with st.container(border=True):
             st.markdown('<div class="accent-gold"></div><div class="panel-title">NEXT LAUNCHES · 30 DAYS</div>', unsafe_allow_html=True)
             render_upcoming(upcoming, limit=6)
+
+    with left:
+        with st.container(border=True):
+            st.markdown('<div class="accent-blue"></div><div class="panel-title">EUROPE · CAPABILITY PICTURE</div>', unsafe_allow_html=True)
+            caps = europe_capability_stats(recent, upcoming, ytd if ytd_ok else None)
+            c1, c2 = st.columns(2, gap="small")
+            with c1:
+                render_capability_card(caps[0])
+                render_capability_card(caps[2])
+            with c2:
+                render_capability_card(caps[1])
+                render_capability_card(caps[3])
+            st.markdown('<div class="watchbar"><b>EUROPE · BUILDING / WATCH</b><span>IRIS² · GOVSATCOM · Ariane 6 · Vega-C · Spectrum · RFA One · Orbex Prime · Miura 5</span></div>', unsafe_allow_html=True)
 
     # -------------------- European actors --------------------
     section_header("EUROPE EVENTS · ALL LAUNCH ACTORS", "LCH = LAUNCHES · OBJECTS = NEW CATALOGUED/ESTIMATED ORBITAL OBJECTS · PLAN = NEXT 30D")
@@ -897,7 +945,7 @@ def render_dashboard():
                 st.markdown('<div class="launch-card"><div class="launch-placeholder">🛰️</div></div>', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK</span><span>launch refresh 15 min · GP/object cache 2–6 h</span></div>',
+        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK</span><span>auto retry · launch refresh 15 min · catalogue cache 2–6 h</span></div>',
         unsafe_allow_html=True,
     )
 
