@@ -16,7 +16,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.2 · NORDIC CONTRAST · CLEAN MAP + EUROPE NOW/TARGET
+# SPACE UPDATE v0.8.3 · NORDIC CONTRAST · COUNTERSPACE WATCH
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -520,7 +520,39 @@ def _news_cached():
                         except Exception:
                             dt = None
 
-                low = title.lower()
+                description = _xml_text(
+                    item, {"description", "summary", "content", "encoded"}
+                )
+
+                # Prefer image URLs already present in RSS/Atom.
+                image_url = ""
+                for child in item.iter():
+                    tag = child.tag.split("}")[-1].lower()
+                    if tag in ("content", "thumbnail", "enclosure"):
+                        candidate = (
+                            child.attrib.get("url")
+                            or child.attrib.get("href")
+                            or ""
+                        )
+                        media_type = (child.attrib.get("type") or "").lower()
+                        if candidate and (
+                            media_type.startswith("image/")
+                            or re.search(r"\.(?:jpg|jpeg|png|webp)(?:\?|$)", candidate, re.I)
+                            or tag in ("thumbnail", "content")
+                        ):
+                            image_url = candidate
+                            break
+
+                if not image_url and description:
+                    m = re.search(
+                        r'<img[^>]+src=["\']([^"\']+)["\']',
+                        description,
+                        flags=re.I,
+                    )
+                    if m:
+                        image_url = m.group(1)
+
+                low = f"{title} {description}".lower()
                 score = source_boost.get(source, 0)
 
                 for term, points in importance_terms.items():
@@ -553,6 +585,8 @@ def _news_cached():
                     "date": dt,
                     "priority": priority,
                     "score": score,
+                    "summary": description,
+                    "image": image_url,
                 })
         except Exception:
             return []
@@ -1343,9 +1377,9 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
    ---------------------------------------------------------- */
 .next-v08 {
     display:grid;
-    grid-template-columns:62px 1fr;
-    gap:8px;
-    padding:7px 0;
+    grid-template-columns:58px 1fr;
+    gap:7px;
+    padding:4px 0;
     border-bottom:1px solid #E0E7E9;
 }
 .next-v08:last-child {border-bottom:none;}
@@ -1356,10 +1390,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .next-spaceport {
-    color:#526E79;font-size:9px;margin-top:3px;
+    color:#526E79;font-size:9px;margin-top:1px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.next-meta {color:#84969D;font-size:8px;margin-top:1px;}
+.next-meta {color:#84969D;font-size:7px;margin-top:0;}
 
 /* ----------------------------------------------------------
    K. FEATURED LAUNCH
@@ -1371,6 +1405,128 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     height:194px;margin-top:5px;border:1px solid #CDD8DB;border-radius:9px;
     background:#EEF3F4;display:flex;align-items:center;justify-content:center;
     color:#71858D;font-size:10px;
+}
+
+
+/* ----------------------------------------------------------
+   L. COUNTERSPACE WATCH
+   ---------------------------------------------------------- */
+.counter-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:7px;
+    padding-top:6px;
+    border-top:1px solid #D5DFE2;
+}
+.counter-title {
+    color:#7A493F;
+    font-size:9px;
+    font-weight:830;
+    letter-spacing:.10em;
+}
+.counter-period {
+    color:#8A9BA1;
+    font-size:8px;
+}
+.counter-card {
+    margin-top:5px;
+    border:1px solid #D8C9C5;
+    border-radius:9px;
+    overflow:hidden;
+    background:#FCF8F7;
+}
+.counter-image {
+    height:116px;
+    position:relative;
+    overflow:hidden;
+    background:
+      linear-gradient(135deg,#D8E0E1 0%,#EEF2F2 55%,#E2D7D3 100%);
+}
+.counter-image img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+}
+.counter-image-shade {
+    position:absolute;
+    inset:0;
+    background:linear-gradient(180deg,rgba(12,22,27,.02) 25%,rgba(15,27,32,.84) 100%);
+}
+.counter-badge {
+    position:absolute;
+    top:6px;
+    left:7px;
+    padding:3px 6px;
+    border-radius:999px;
+    background:#8B5549;
+    color:#FFF8F5;
+    font-size:7px;
+    font-weight:820;
+    letter-spacing:.07em;
+}
+.counter-caption {
+    position:absolute;
+    left:9px;
+    right:9px;
+    bottom:7px;
+    color:#FFFFFF;
+}
+.counter-story {
+    font-size:10px;
+    font-weight:780;
+    line-height:1.18;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.counter-source {
+    margin-top:2px;
+    color:#D7E0E1;
+    font-size:7px;
+}
+.counter-no-image {
+    height:116px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:10px;
+    text-align:center;
+    color:#7B6560;
+    font-size:10px;
+    font-weight:700;
+}
+.counter-second {
+    display:grid;
+    grid-template-columns:7px 1fr;
+    gap:7px;
+    align-items:center;
+    padding:6px 8px;
+    border-top:1px solid #E7DCD9;
+}
+.counter-dot {
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#A3685B;
+}
+.counter-second-title {
+    color:#4A3935;
+    font-size:8px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.counter-empty {
+    margin-top:5px;
+    padding:9px;
+    border:1px dashed #D8C9C5;
+    border-radius:8px;
+    background:#FCF8F7;
+    color:#806B65;
+    font-size:9px;
 }
 
 /* ----------------------------------------------------------
@@ -2178,7 +2334,252 @@ def featured_launch_slideshow_v08(recent):
       <div class="frame">{"".join(slides)}</div>
     </body></html>
     """
-    components.html(html_blob, height=207, scrolling=False)
+    components.html(html_blob, height=156, scrolling=False)
+
+
+
+# ============================================================
+# 07B · COUNTERSPACE WATCH
+# ============================================================
+
+COUNTERSPACE_TERMS = {
+    # High-confidence terms
+    "counterspace": 10,
+    "anti-satellite": 10,
+    "antisatellite": 10,
+    "asat": 10,
+    "space weapon": 9,
+    "co-orbital": 9,
+    "coorbital": 9,
+    "rendezvous and proximity": 9,
+    "proximity operation": 9,
+    "proximity operations": 9,
+    "rpo": 8,
+    "satellite jamming": 10,
+    "satcom jamming": 10,
+    "gnss jamming": 10,
+    "gps jamming": 10,
+    "gnss spoofing": 10,
+    "gps spoofing": 10,
+    "satellite interference": 9,
+    "laser dazzling": 10,
+    "dazzling": 8,
+    "directed energy": 8,
+    "electronic warfare": 7,
+    "space electronic warfare": 9,
+    "satellite cyber": 9,
+    "satellite cyberattack": 10,
+
+    # Supporting terms; these only become useful when paired with
+    # satellite/space context below.
+    "jamming": 5,
+    "spoofing": 5,
+    "interference": 4,
+    "maneuver": 3,
+    "manoeuvre": 3,
+    "rendezvous": 4,
+    "laser": 4,
+    "cyber": 3,
+    "debris": 3,
+}
+
+
+def counterspace_score(item):
+    title = str(item.get("title") or "")
+    summary = re.sub(
+        r"<[^>]+>", " ", str(item.get("summary") or "")
+    )
+    low = f"{title} {summary}".lower()
+
+    score = 0
+    for term, points in COUNTERSPACE_TERMS.items():
+        if term in low:
+            score += points
+
+    # Generic terms should not turn unrelated terrestrial EW/cyber stories
+    # into counterspace items.
+    space_context = any(
+        term in low
+        for term in [
+            "satellite", "space", "gnss", "gps", "orbit",
+            "starlink", "galileo", "satcom",
+        ]
+    )
+    high_confidence = any(
+        term in low
+        for term in [
+            "counterspace", "anti-satellite", "antisatellite", "asat",
+            "co-orbital", "coorbital", "proximity operation",
+            "gnss jamming", "gps jamming", "satellite jamming",
+            "gnss spoofing", "gps spoofing", "laser dazzling",
+        ]
+    )
+
+    if not space_context and not high_confidence:
+        score = 0
+
+    # Freshness bonus
+    dt = item.get("date")
+    if dt:
+        age_hours = (
+            datetime.now(timezone.utc)
+            - dt.astimezone(timezone.utc)
+        ).total_seconds() / 3600
+        if age_hours <= 24:
+            score += 3
+        elif age_hours <= 72:
+            score += 2
+        elif age_hours <= 168:
+            score += 1
+
+    return score
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def article_og_image(url):
+    """Best-effort fallback image. Failure never blocks the dashboard."""
+    if not url:
+        return ""
+    try:
+        html_text = _request_text(url, timeout=3)
+        patterns = [
+            r"<meta[^>]+property=[\"\']og:image[\"\'][^>]+content=[\"\']([^\"\']+)[\"\']",
+            r"<meta[^>]+content=[\"\']([^\"\']+)[\"\'][^>]+property=[\"\']og:image[\"\']",
+            r"<meta[^>]+name=[\"\']twitter:image[\"\'][^>]+content=[\"\']([^\"\']+)[\"\']",
+        ]
+        for pattern in patterns:
+            m = re.search(pattern, html_text, flags=re.I)
+            if m:
+                return html.unescape(m.group(1))
+    except Exception:
+        pass
+    return ""
+
+
+def get_counterspace_items(news, limit=2):
+    floor = datetime.now(timezone.utc) - timedelta(days=7)
+    candidates = []
+
+    for item in news:
+        dt = item.get("date")
+        if dt and dt.astimezone(timezone.utc) < floor:
+            continue
+
+        score = counterspace_score(item)
+        if score < 7:
+            continue
+
+        enriched = dict(item)
+        enriched["counterspace_score"] = score
+        candidates.append(enriched)
+
+    candidates.sort(
+        key=lambda x: (
+            x.get("counterspace_score", 0),
+            x.get("date") or datetime(1970, 1, 1, tzinfo=timezone.utc),
+        ),
+        reverse=True,
+    )
+
+    chosen = candidates[:limit]
+
+    # Resolve only the primary image, and only if the feed did not supply one.
+    # This keeps the app fast.
+    if chosen and not chosen[0].get("image"):
+        chosen[0]["image"] = article_og_image(chosen[0].get("link") or "")
+
+    return chosen
+
+
+def counterspace_type(item):
+    text_blob = (
+        f'{item.get("title","")} {item.get("summary","")}'
+    ).lower()
+
+    if any(x in text_blob for x in ["jamming", "spoofing", "interference", "electronic warfare"]):
+        return "EW / INTERFERENCE"
+    if any(x in text_blob for x in ["co-orbital", "coorbital", "proximity", "rendezvous", "rpo"]):
+        return "ON-ORBIT ACTIVITY"
+    if any(x in text_blob for x in ["anti-satellite", "antisatellite", "asat", "kinetic"]):
+        return "ASAT / KINETIC"
+    if any(x in text_blob for x in ["laser", "dazzling", "directed energy"]):
+        return "DIRECTED ENERGY"
+    if "cyber" in text_blob:
+        return "CYBER"
+    return "COUNTERSPACE"
+
+
+def render_counterspace_watch(news):
+    items = get_counterspace_items(news, limit=2)
+
+    raw_html(
+        '<div class="counter-head">'
+        '<div class="counter-title">COUNTERSPACE WATCH</div>'
+        '<div class="counter-period">OPEN SOURCE · 7D</div>'
+        '</div>'
+    )
+
+    if not items:
+        raw_html(
+            '<div class="counter-empty">'
+            'No significant counterspace event identified in the selected '
+            'open-source feeds during the last 7 days.'
+            '</div>'
+        )
+        return
+
+    primary = items[0]
+    image = primary.get("image") or ""
+    title = esc(primary.get("title"))
+    source = esc(primary.get("source"))
+    event_type = esc(counterspace_type(primary))
+    date = primary.get("date")
+    when = (
+        date.astimezone(LOCAL_TZ).strftime("%d %b")
+        if date else ""
+    )
+    link = esc(primary.get("link") or "")
+
+    if image:
+        visual = (
+            f'<div class="counter-image">'
+            f'<img src="{esc(image)}" alt="{title}">'
+            f'<div class="counter-image-shade"></div>'
+            f'<div class="counter-badge">{event_type}</div>'
+            f'<div class="counter-caption">'
+            f'<div class="counter-story">{title}</div>'
+            f'<div class="counter-source">{source} · {esc(when)}</div>'
+            f'</div></div>'
+        )
+    else:
+        visual = (
+            f'<div class="counter-image">'
+            f'<div class="counter-no-image">'
+            f'<div><strong>{event_type}</strong><br>{title}</div>'
+            f'</div></div>'
+        )
+
+    second = ""
+    if len(items) > 1:
+        item = items[1]
+        second = (
+            f'<div class="counter-second">'
+            f'<span class="counter-dot"></span>'
+            f'<div class="counter-second-title">'
+            f'{esc(counterspace_type(item))} · {esc(item.get("title"))}'
+            f'</div></div>'
+        )
+
+    # The whole card is clickable when a source URL is available.
+    if link:
+        content = (
+            f'<a href="{link}" target="_blank" '
+            f'style="text-decoration:none;color:inherit">{visual}{second}</a>'
+        )
+    else:
+        content = visual + second
+
+    raw_html(f'<div class="counter-card">{content}</div>')
 
 
 # ============================================================
@@ -2305,16 +2706,19 @@ def render_dashboard():
         with st.container(border=True):
             raw_html(
                 '<div class="panel-heading"><div class="panel-title">NEXT LAUNCHES</div>'
-                '<div class="panel-note">30 DAYS · SPACEPORT INCLUDED</div></div>'
+                '<div class="panel-note">TOP 3 · SPACEPORT</div></div>'
             )
             render_upcoming_v08(upcoming, limit=3)
+
             raw_html('<div class="featured-label">FEATURED LAUNCH</div>')
             featured_launch_slideshow_v08(recent)
 
+            render_counterspace_watch(news)
+
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL</span>'
-        '<span>v0.8.2 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = OPEN-SOURCE WATCH</span>'
+        '<span>v0.8.3 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
