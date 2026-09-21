@@ -15,7 +15,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.6.2 · NORDIC · PERFORMANCE FIX
+# SPACE UPDATE v0.6.3 · NORDIC · SINGLE-SCREEN FIX
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -44,7 +44,7 @@ LL2_BASES = [
 ]
 CELESTRAK_GP = "https://celestrak.org/NORAD/elements/gp.php"
 CELESTRAK_SATCAT = "https://celestrak.org/satcat/records.php"
-HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6.2-nordic (Streamlit 16:9 wall display)"}
+HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6.3-nordic (Streamlit 16:9 wall display)"}
 
 NEWS_FEEDS = [
     ("EUSPA", "https://www.euspa.europa.eu/pressroom/press-releases/rss.xml", 0),
@@ -756,7 +756,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {di
 [data-testid="stSidebar"] {display:none !important;}
 .block-container {
     max-width:100vw !important;
-    padding:0.72rem 1.0rem 0.52rem 1.0rem !important;
+    padding:0.42rem 0.70rem 0.30rem 0.70rem !important;
 }
 .stApp {
     color:#F3F6F8;
@@ -774,10 +774,10 @@ html, body, [class*="css"] {
     display:flex;
     justify-content:space-between;
     align-items:flex-end;
-    margin:0 0 .30rem 0;
+    margin:0 0 .20rem 0;
 }
 .hero-title {
-    font-size:clamp(29px,2.05vw,41px);
+    font-size:clamp(27px,1.85vw,37px);
     font-weight:780;
     letter-spacing:.075em;
     line-height:1;
@@ -836,7 +836,7 @@ html, body, [class*="css"] {
    D. NEWS TICKER
    ========================================================== */
 .news-ticker {
-    height:27px;
+    height:24px;
     overflow:hidden;
     border:1px solid #1B2B39;
     border-radius:9px;
@@ -864,7 +864,7 @@ html, body, [class*="css"] {
 .news-track {
     display:flex;
     width:max-content;
-    height:27px;
+    height:24px;
     align-items:center;
     animation:news-scroll 88s linear infinite;
     padding-left:68px;
@@ -882,8 +882,8 @@ html, body, [class*="css"] {
    ========================================================== */
 .actor-card {
     border-radius:14px;
-    padding:10px 12px 9px;
-    min-height:112px;
+    padding:8px 11px 7px;
+    min-height:96px;
     background:#11212D;
     border:1px solid #304553;
     border-top:3px solid var(--accent);
@@ -896,7 +896,7 @@ html, body, [class*="css"] {
     align-items:center;
     justify-content:space-between;
     gap:8px;
-    margin-bottom:6px;
+    margin-bottom:4px;
 }
 .actor-name {
     font-size:10px;
@@ -942,7 +942,7 @@ html, body, [class*="css"] {
     letter-spacing:.09em;
 }
 .actor-big {
-    font-size:clamp(27px,1.9vw,39px);
+    font-size:clamp(25px,1.65vw,34px);
     font-weight:760;
     line-height:.95;
     margin-top:3px;
@@ -957,7 +957,7 @@ html, body, [class*="css"] {
 .actor-24h {
     font-size:8px;
     color:#93A6B4;
-    margin-top:5px;
+    margin-top:3px;
 }
 .actor-24h strong {
     color:#E7EDF1;
@@ -973,6 +973,12 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     border:1px solid #253746 !important;
     border-radius:14px !important;
     box-shadow:none !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"] > div {
+    padding:.42rem .52rem .38rem !important;
+}
+div[data-testid="stVerticalBlock"] {
+    gap:.34rem;
 }
 .panel-title {
     font-size:10px;
@@ -997,10 +1003,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
    ========================================================== */
 .cap-card {
     border-radius:11px;
-    padding:9px 10px;
+    padding:5px 6px;
     background:#142534;
     border:1px solid #294052;
-    min-height:108px;
+    min-height:82px;
 }
 .cap-title {
     font-size:9px;
@@ -1015,10 +1021,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     display:grid;
     grid-template-columns:repeat(3,1fr);
     gap:5px;
-    margin-top:7px;
+    margin-top:5px;
 }
 .cap-cell {
-    padding:5px 2px;
+    padding:4px 2px;
     text-align:center;
     border-radius:7px;
     background:#0D1C27;
@@ -1031,44 +1037,44 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     font-weight:750;
 }
 .cap-value {
-    font-size:clamp(17px,1.2vw,24px);
+    font-size:clamp(15px,1.0vw,21px);
     line-height:1.05;
     font-weight:760;
     margin-top:2px;
     color:#F0F4F6;
 }
-.cap-sub {font-size:8px; color:#637B8D; margin-top:6px;}
+.cap-sub {font-size:7px; color:#637B8D; margin-top:4px;}
 .watchbar {
     border-left:3px solid #5FA7D8;
     border-radius:7px;
     background:#122838;
     padding:7px 9px;
-    margin-top:7px;
+    margin-top:5px;
 }
 .watchbar b {color:#86B8D6; font-size:8px; letter-spacing:.11em;}
-.watchbar span {display:block; color:#C4D0D8; font-size:10px; margin-top:2px;}
+.watchbar span {display:block; color:#C4D0D8; font-size:8px; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 
 /* ==========================================================
    H. EUROPE ACTOR TABLE
    ========================================================== */
-.eu-summary {display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;}
+.eu-summary {display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:4px;}
 .eu-summary-card {
     border-radius:9px;
     background:#142534;
     border:1px solid #294052;
-    padding:7px 8px;
+    padding:5px 6px;
 }
 .eu-summary-label {font-size:7px; color:#7593A9; font-weight:760; letter-spacing:.09em;}
-.eu-summary-value {font-size:21px; font-weight:760; line-height:1; margin-top:3px; color:#F1F5F7;}
+.eu-summary-value {font-size:17px; font-weight:760; line-height:1; margin-top:2px; color:#F1F5F7;}
 .eu-table {width:100%;}
-.eu-actor-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 8px; margin-top:5px;}
+.eu-actor-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 5px; margin-top:3px;}
 .eu-row {
     display:grid;
     grid-template-columns:1.65fr .55fr .68fr .58fr;
     gap:4px;
     align-items:center;
-    min-height:29px;
-    padding:4px 6px;
+    min-height:23px;
+    padding:2px 5px;
     border:1px solid #213442;
     border-radius:8px;
     background:#0D1B26;
@@ -1084,10 +1090,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     letter-spacing:.08em;
 }
 .eu-namewrap {display:flex; align-items:center; gap:6px; min-width:0;}
-.eu-logo {width:19px; height:19px; object-fit:contain; flex:none;}
+.eu-logo {width:16px; height:16px; object-fit:contain; flex:none;}
 .eu-logo-fallback {
-    width:19px;
-    height:19px;
+    width:16px;
+    height:16px;
     border-radius:5px;
     border:1px solid #365166;
     color:#8EA9BB;
@@ -1098,9 +1104,20 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     font-weight:760;
     flex:none;
 }
-.eu-name {font-size:9px; font-weight:680; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.eu-num {font-size:11px; font-weight:760; text-align:right;}
+.eu-name {font-size:8px; font-weight:680; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.eu-num {font-size:9px; font-weight:760; text-align:right;}
 .eu-muted {color:#70889c;}
+
+/* Compact Europe-events subheading inside the Europe panel */
+.eu-subsection-title {
+    margin:6px 0 4px;
+    padding-top:5px;
+    border-top:1px solid #213442;
+    color:#8EB8D0;
+    font-size:8px;
+    font-weight:780;
+    letter-spacing:.11em;
+}
 
 /* ==========================================================
    I. WHAT CHANGED + NEXT LAUNCHES
@@ -1109,17 +1126,17 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     display:grid;
     grid-template-columns:3px 1fr auto;
     gap:7px;
-    padding:5px 0;
+    padding:3px 0;
     border-bottom:1px solid #1C2E3B;
     align-items:center;
 }
-.change-line {width:3px; height:27px; border-radius:4px; background:var(--accent);}
+.change-line {width:3px; height:24px; border-radius:4px; background:var(--accent);}
 .change-name {font-size:9px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .change-meta {font-size:7px; color:#698196; margin-top:1px;}
 .change-orbit {font-size:8px; color:#8BA3B6; font-weight:760;}
 .next-card {
     border-radius:9px;
-    padding:7px 8px;
+    padding:5px 6px;
     margin-bottom:5px;
     background:#131F28;
     border:1px solid #2C3A43;
@@ -1132,7 +1149,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
    J. LAUNCH GALLERY
    ========================================================== */
 .launch-card {
-    height:clamp(116px,13.2vh,142px);
+    height:clamp(92px,10.4vh,112px);
     border-radius:12px;
     overflow:hidden;
     border:1px solid #263A49;
@@ -1141,7 +1158,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 }
 .launch-img {width:100%; height:100%; object-fit:cover; display:block;}
 .launch-placeholder {width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:40px; background:#12222E;}
-.launch-overlay {position:absolute; left:0; right:0; bottom:0; padding:25px 10px 8px; background:linear-gradient(transparent,rgba(6,13,18,.94) 46%);}
+.launch-overlay {position:absolute; left:0; right:0; bottom:0; padding:19px 9px 6px; background:linear-gradient(transparent,rgba(6,13,18,.94) 46%);}
 .launch-name {font-size:10px; font-weight:730; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .launch-meta {font-size:8px; color:#9AAEBB; margin-top:2px;}
 .launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(5,10,14,.62); color:#D0D8DE; font-size:6px;}
@@ -1162,8 +1179,17 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 
 /* 16:9 monitor tuning */
 @media(max-width:1400px){
-  .actor-card{min-height:104px;}
-  .launch-card{height:120px;}
+  .actor-card{min-height:92px;}
+  .launch-card{height:94px;}
+}
+@media(max-height:900px){
+  .block-container{padding-top:.28rem !important;padding-bottom:.20rem !important;}
+  .hero-title{font-size:28px;}
+  .news-ticker,.news-track{height:22px;}
+  .actor-card{min-height:90px;}
+  .cap-card{min-height:76px;}
+  .launch-card{height:88px;}
+  .section-row{margin:.20rem 0 .18rem;}
 }
 </style>
 """,
@@ -1180,6 +1206,14 @@ def section_header(title, note=""):
         f'<div class="section-row"><div class="section-title">{esc(title)}</div><div class="source-note">{esc(note)}</div></div>',
         unsafe_allow_html=True,
     )
+
+
+def raw_html(markup):
+    """Render trusted dashboard HTML without Markdown parsing it as code."""
+    if hasattr(st, "html"):
+        st.html(markup)
+    else:
+        st.markdown(markup, unsafe_allow_html=True)
 
 
 def _display_object_total(known, unknown, estimated=False):
@@ -1251,6 +1285,7 @@ def render_capability_card(item):
 
 
 def render_europe_actor_table(recent, upcoming):
+    """Compact two-column European actor matrix for the 16:9 Europe panel."""
     rows = build_europe_actor_stats(recent, upcoming)
     total_launches = sum(v["launches_7d"] for _, v in rows)
     total_objects = sum(v["objects_known"] for _, v in rows)
@@ -1281,31 +1316,27 @@ def render_europe_actor_table(recent, upcoming):
 
         active = values["launches_7d"] or values["planned_30d"]
         opacity = "1" if active else ".48"
+        # Intentionally one-line HTML: avoids Markdown treating nested divs as code blocks.
         cards.append(
-            f"""
-            <div class="eu-row" style="opacity:{opacity}">
-              <div class="eu-namewrap">{logo_html}<div class="eu-name">{esc(actor)}</div></div>
-              <div class="eu-num">{values['launches_7d']}</div>
-              <div class="eu-num">{obj}</div>
-              <div class="eu-num">{values['planned_30d']}</div>
-            </div>
-            """
+            f'<div class="eu-row" style="opacity:{opacity}">'
+            f'<div class="eu-namewrap">{logo_html}<div class="eu-name">{esc(actor)}</div></div>'
+            f'<div class="eu-num">{values["launches_7d"]}</div>'
+            f'<div class="eu-num">{obj}</div>'
+            f'<div class="eu-num">{values["planned_30d"]}</div>'
+            f'</div>'
         )
 
-    st.markdown(
-        f"""
-        <div class="eu-summary">
-          <div class="eu-summary-card"><div class="eu-summary-label">LAUNCHES · 7D</div><div class="eu-summary-value">{total_launches}</div></div>
-          <div class="eu-summary-card"><div class="eu-summary-label">NEW OBJECTS · 7D</div><div class="eu-summary-value">{object_total_label}</div></div>
-          <div class="eu-summary-card"><div class="eu-summary-label">PLANNED · 30D</div><div class="eu-summary-value">{total_planned}</div></div>
-        </div>
-        <div class="eu-colheads"><div>EUROPEAN ACTOR</div><div style="text-align:right">LCH</div><div style="text-align:right">OBJECTS</div><div style="text-align:right">PLAN</div></div>
-        <div class="eu-actor-grid">{''.join(cards)}</div>
-        """,
-        unsafe_allow_html=True,
+    markup = (
+        f'<div class="eu-summary">'
+        f'<div class="eu-summary-card"><div class="eu-summary-label">LAUNCHES · 7D</div><div class="eu-summary-value">{total_launches}</div></div>'
+        f'<div class="eu-summary-card"><div class="eu-summary-label">NEW OBJECTS · 7D</div><div class="eu-summary-value">{object_total_label}</div></div>'
+        f'<div class="eu-summary-card"><div class="eu-summary-label">PLANNED · 30D</div><div class="eu-summary-value">{total_planned}</div></div>'
+        f'</div>'
+        f'<div class="eu-colheads"><div>EUROPEAN ACTOR</div><div style="text-align:right">LCH</div><div style="text-align:right">OBJECTS</div><div style="text-align:right">PLAN</div></div>'
+        f'<div class="eu-actor-grid">{"".join(cards)}</div>'
+        f'<div style="font-size:6px;color:#526b7e;margin-top:2px">* estimated minimum · ? catalogue not yet resolved</div>'
     )
-    st.markdown('<div style="font-size:7px;color:#526b7e;margin-top:4px">* estimated minimum from mission data when SATCAT is not yet available · ? = catalogue not yet resolved</div>', unsafe_allow_html=True)
-
+    raw_html(markup)
 
 def render_news_ticker(items):
     if not items:
@@ -1375,7 +1406,7 @@ def orbit_visual(recent):
       </div>
     </body></html>
     """
-    components.html(svg, height=292, scrolling=False)
+    components.html(svg, height=232, scrolling=False)
 
 
 def render_changes(recent, limit=6):
@@ -1542,12 +1573,12 @@ def render_dashboard():
             st.markdown('<div class="accent-green"></div><div class="panel-title">ORBITAL ACTIVITY · LAST 7 DAYS</div>', unsafe_allow_html=True)
             orbit_visual(recent)
             st.markdown('<div class="panel-title" style="margin-top:-3px">WHAT CHANGED?</div>', unsafe_allow_html=True)
-            render_changes(recent, limit=5)
+            render_changes(recent, limit=4)
 
     with right:
         with st.container(border=True):
             st.markdown('<div class="accent-gold"></div><div class="panel-title">NEXT LAUNCHES · 30 DAYS</div>', unsafe_allow_html=True)
-            render_upcoming(upcoming, limit=6)
+            render_upcoming(upcoming, limit=5)
 
     with left:
         with st.container(border=True):
@@ -1563,12 +1594,8 @@ def render_dashboard():
                 render_capability_card(caps[1])
                 render_capability_card(caps[3])
             st.markdown('<div class="watchbar"><b>EUROPE · BUILDING / WATCH</b><span>IRIS² · GOVSATCOM · Ariane 6 · Vega-C · Spectrum · RFA One · Orbex Prime · Miura 5</span></div>', unsafe_allow_html=True)
-
-    # -------------------- European actors --------------------
-    section_header("EUROPE EVENTS · ALL LAUNCH ACTORS", "LCH = LAUNCHES · OBJECTS = NEW CATALOGUED/ESTIMATED ORBITAL OBJECTS · PLAN = NEXT 30D")
-    with st.container(border=True):
-        st.markdown('<div class="accent-blue"></div>', unsafe_allow_html=True)
-        render_europe_actor_table(recent, upcoming)
+            st.markdown('<div class="eu-subsection-title">EUROPE EVENTS · ALL LAUNCH ACTORS · LCH / OBJECTS / PLAN 30D</div>', unsafe_allow_html=True)
+            render_europe_actor_table(recent, upcoming)
 
     # -------------------- Launch gallery --------------------
     section_header("LAUNCHES · LAST 7 DAYS", "IMAGES · SOURCE/CREDIT SHOWN ON IMAGE")
@@ -1583,7 +1610,7 @@ def render_dashboard():
                 st.markdown('<div class="launch-card"><div class="launch-placeholder">🛰️</div></div>', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 wall display · auto retry · launch/news 15 min · SATCAT fast-cache 5 min/6 h</span></div>',
+        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 single-screen · v0.6.3 · launch/news 15 min · SATCAT fast-cache 5 min/6 h</span></div>',
         unsafe_allow_html=True,
     )
 
