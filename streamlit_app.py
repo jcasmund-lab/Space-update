@@ -740,461 +740,128 @@ def europe_capability_stats(recent, upcoming, ytd):
     ]
 
 
+
 # ============================================================
-# 06 · VISUAL DESIGN / CSS
-# Nordic direction: calm, flat, spacious, restrained accents.
-# Keep class names stable so individual sections can be restyled later.
+# 06 · VISUAL DESIGN / CSS · v0.7 NORDIC REDESIGN
 # ============================================================
 
 st.markdown(
     """
 <style>
-/* ==========================================================
-   A. STREAMLIT CHROME + 16:9 CANVAS
-   ========================================================== */
 header[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {display:none !important;}
 [data-testid="stSidebar"] {display:none !important;}
-.block-container {
-    max-width:100vw !important;
-    padding:0.48rem 0.82rem 0.34rem 0.82rem !important;
-}
-.stApp {
-    color:#F3F6F8;
-    background:#09131D;
-}
-html, body, [class*="css"] {
-    font-family:Inter,"Segoe UI",Arial,sans-serif;
-    letter-spacing:0;
-}
+.block-container {max-width:100vw !important; padding:.42rem .72rem .34rem .72rem !important;}
+.stApp {color:#F3F5F4; background:#0B141A;}
+html, body, [class*="css"] {font-family:Inter,"Segoe UI",Arial,sans-serif; letter-spacing:0;}
+div[data-testid="stVerticalBlock"] {gap:.36rem;}
+div[data-testid="stHorizontalBlock"] {gap:.62rem;}
 
-/* ==========================================================
-   B. HEADER
-   ========================================================== */
-.hero {
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    margin:0 0 .20rem 0;
-}
-.hero-title {
-    font-size:clamp(32px,2.05vw,42px);
-    font-weight:780;
-    letter-spacing:.075em;
-    line-height:1;
-    color:#F5F7F8;
-}
-.hero-sub {
-    font-size:clamp(11px,.76vw,15px);
-    color:#8FA2B1;
-    letter-spacing:.10em;
-    margin-top:.28rem;
-}
-.hero-time {
-    text-align:right;
-    color:#8397A6;
-    font-size:11px;
-    letter-spacing:.08em;
-}
-.hero-time strong {
-    display:block;
-    color:#EDF2F5;
-    font-size:19px;
-    font-weight:700;
-    margin-top:2px;
-}
-.live-dot {
-    display:inline-block;
-    width:6px;
-    height:6px;
-    border-radius:50%;
-    background:#7BC5A4;
-    margin-right:5px;
-}
+/* HEADER */
+.hero {display:flex;justify-content:space-between;align-items:flex-end;margin:0 0 .12rem 0;}
+.hero-title {font-size:clamp(31px,1.9vw,39px);font-weight:760;letter-spacing:.075em;line-height:1;color:#F6F7F5;}
+.hero-sub {font-size:clamp(11px,.70vw,14px);color:#8FA0A9;letter-spacing:.11em;margin-top:.25rem;}
+.hero-time {text-align:right;color:#83949D;font-size:10px;letter-spacing:.09em;}
+.hero-time strong {display:block;color:#F2F4F3;font-size:18px;font-weight:700;margin-top:1px;}
+.live-dot {display:inline-block;width:6px;height:6px;border-radius:50%;background:#86B79E;margin-right:5px;}
 
-/* ==========================================================
-   C. SECTION HEADINGS
-   ========================================================== */
-.section-row {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin:.31rem 0 .26rem;
-}
-.section-title {
-    font-size:12px;
-    font-weight:760;
-    color:#A6B6C2;
-    letter-spacing:.12em;
-}
-.source-note {
-    font-size:9px;
-    color:#52697B;
-    letter-spacing:.09em;
-}
-
-/* ==========================================================
-   D. NEWS TICKER
-   ========================================================== */
-.news-ticker {
-    height:30px;
-    overflow:hidden;
-    border:1px solid #1B2B39;
-    border-radius:9px;
-    background:#0D1924;
-    margin:.16rem 0 .30rem;
-    position:relative;
-}
-.news-ticker:before {
-    content:"NEWS";
-    position:absolute;
-    z-index:3;
-    left:0;
-    top:0;
-    bottom:0;
-    display:flex;
-    align-items:center;
-    padding:0 10px;
-    background:#152737;
-    color:#9FC6DD;
-    font-size:9px;
-    font-weight:800;
-    letter-spacing:.12em;
-    border-right:1px solid #263A49;
-}
-.news-track {
-    display:flex;
-    width:max-content;
-    height:30px;
-    align-items:center;
-    animation:news-scroll 88s linear infinite;
-    padding-left:68px;
-}
-.news-set {display:flex; align-items:center; white-space:nowrap;}
-.news-item {font-size:10px; color:#C9D3DA; margin-right:30px;}
-.news-source {color:#8FB9D0; font-weight:760; letter-spacing:.07em; margin-right:5px;}
-.news-dot {color:#3F5667; margin-right:9px;}
+/* NEWS */
+.news-ticker {height:28px;overflow:hidden;border-top:1px solid #20313A;border-bottom:1px solid #20313A;background:#0D181E;margin:.12rem 0 .22rem;position:relative;}
+.news-ticker:before {content:"NEWS";position:absolute;z-index:3;left:0;top:0;bottom:0;display:flex;align-items:center;padding:0 10px;background:#13232C;color:#8FB7CB;font-size:9px;font-weight:800;letter-spacing:.13em;border-right:1px solid #263B45;}
+.news-track {display:flex;width:max-content;height:28px;align-items:center;animation:news-scroll 92s linear infinite;padding-left:66px;}
+.news-set {display:flex;align-items:center;white-space:nowrap;}
+.news-item {font-size:10px;color:#C4CDD1;margin-right:30px;}
+.news-source {color:#82AABE;font-weight:760;letter-spacing:.07em;margin-right:5px;}
+.news-dot {color:#3A515C;margin-right:10px;}
 @keyframes news-scroll {from{transform:translateX(0)} to{transform:translateX(-50%)}}
 
-/* ==========================================================
-   E. MAJOR ACTOR CARDS
-   Big number = 7 days. Small line below = 24 hours.
-   Each card contains LAUNCHES + NEW OBJECTS.
-   ========================================================== */
-.actor-card {
-    border-radius:14px;
-    padding:11px 14px 10px;
-    min-height:122px;
-    background:#11212D;
-    border:1px solid #304553;
-    border-top:3px solid var(--accent);
-    overflow:hidden;
-    position:relative;
-}
-.actor-card:after {display:none;}
-.actor-topline {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:8px;
-    margin-bottom:7px;
-}
-.actor-name {
-    font-size:12px;
-    font-weight:780;
-    letter-spacing:.11em;
-    color:var(--accent);
-}
-.actor-flag {
-    width:38px;
-    height:28px;
-    border-radius:7px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#142431;
-    border:1px solid #324957;
-    font-size:21px;
-    line-height:1;
-    overflow:hidden;
-}
-.actor-flag img {
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    display:block;
-}
-.actor-flag.globe {
-    font-size:18px;
-}
-.actor-metrics {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:14px;
-}
-.actor-metric + .actor-metric {
-    border-left:1px solid #293B49;
-    padding-left:14px;
-}
-.actor-metric-label {
-    font-size:9px;
-    color:#778D9E;
-    font-weight:760;
-    letter-spacing:.09em;
-}
-.actor-big {
-    font-size:clamp(34px,2.15vw,44px);
-    font-weight:760;
-    line-height:.95;
-    margin-top:3px;
-    color:#F4F7F9;
-}
-.actor-seven-label {
-    font-size:9px;
-    color:#657B8C;
-    letter-spacing:.07em;
-    margin-top:2px;
-}
-.actor-24h {
-    font-size:10px;
-    color:#93A6B4;
-    margin-top:3px;
-}
-.actor-24h strong {
-    color:#E7EDF1;
-    font-size:12px;
-    font-weight:760;
-}
+/* SECTION LABELS */
+.section-row {display:flex;justify-content:space-between;align-items:center;margin:.20rem 0 .18rem;}
+.section-title {font-size:11px;font-weight:760;color:#A9B7BD;letter-spacing:.13em;}
+.source-note {font-size:8px;color:#516773;letter-spacing:.09em;}
 
-/* ==========================================================
-   F. PANEL CONTAINERS
-   ========================================================== */
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    background:#0F1C27;
-    border:1px solid #253746 !important;
-    border-radius:14px !important;
-    box-shadow:none !important;
-}
-div[data-testid="stVerticalBlockBorderWrapper"] > div {
-    padding:.54rem .64rem .50rem !important;
-}
-div[data-testid="stVerticalBlock"] {
-    gap:.42rem;
-}
-.panel-title {
-    font-size:12px;
-    font-weight:760;
-    color:#AEBCC6;
-    letter-spacing:.11em;
-    margin-bottom:7px;
-    padding-top:1px;
-}
-.accent-blue,.accent-green,.accent-gold {
-    height:2px;
-    border-radius:3px;
-    margin:-4px 0 8px;
-    box-shadow:none;
-}
-.accent-blue {background:#5FA7D8;}
-.accent-green {background:#6EAF9B;}
-.accent-gold {background:#B99C62;}
+/* ACTOR STRIP */
+.actor-card {min-height:104px;padding:9px 12px 9px;border-radius:12px;background:#101E26;border:1px solid #273A43;border-top:3px solid var(--accent);}
+.actor-topline {display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.actor-name {color:var(--accent);font-size:11px;font-weight:780;letter-spacing:.11em;}
+.actor-flag {width:32px;height:23px;border-radius:5px;overflow:hidden;border:1px solid #344B55;background:#14242C;display:flex;align-items:center;justify-content:center;}
+.actor-flag img {width:100%;height:100%;object-fit:cover;display:block;}
+.actor-flag.globe {font-size:16px;}
+.actor-metrics {display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.actor-metric + .actor-metric {border-left:1px solid #2B3C45;padding-left:12px;}
+.actor-metric-label {color:#718690;font-size:8px;font-weight:780;letter-spacing:.09em;}
+.actor-value-line {display:flex;align-items:flex-end;gap:7px;margin-top:2px;}
+.actor-big {color:#F5F6F4;font-size:clamp(28px,1.75vw,36px);font-weight:740;line-height:.92;}
+.actor-period {color:#627983;font-size:8px;letter-spacing:.06em;padding-bottom:2px;}
+.actor-24h {color:#8FA0A8;font-size:9px;margin-top:4px;}
+.actor-24h strong {color:#E7ECEA;font-size:11px;font-weight:760;}
 
-/* ==========================================================
-   G. EUROPE CAPABILITY CARDS
-   ========================================================== */
-.cap-card {
-    border-radius:11px;
-    padding:8px 9px;
-    background:#142534;
-    border:1px solid #294052;
-    min-height:104px;
-}
-.cap-title {
-    font-size:11px;
-    font-weight:760;
-    color:#AACBDE;
-    letter-spacing:.07em;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-}
-.cap-grid {
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:7px;
-    margin-top:7px;
-}
-.cap-cell {
-    padding:7px 3px;
-    text-align:center;
-    border-radius:7px;
-    background:#0D1C27;
-    border:1px solid #1D3140;
-}
-.cap-label {
-    font-size:9px;
-    color:#6E8799;
-    letter-spacing:.08em;
-    font-weight:750;
-}
-.cap-value {
-    font-size:clamp(20px,1.22vw,26px);
-    line-height:1.05;
-    font-weight:760;
-    margin-top:2px;
-    color:#F0F4F6;
-}
-.cap-sub {font-size:9px; color:#637B8D; margin-top:5px;}
-.watchbar {
-    border-left:3px solid #5FA7D8;
-    border-radius:7px;
-    background:#122838;
-    padding:9px 11px;
-    margin-top:7px;
-}
-.watchbar b {color:#86B8D6; font-size:10px; letter-spacing:.11em;}
-.watchbar span {display:block; color:#C4D0D8; font-size:10px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+/* PANELS */
+div[data-testid="stVerticalBlockBorderWrapper"] {background:#0F1C22;border:1px solid #263841 !important;border-radius:13px !important;box-shadow:none !important;}
+div[data-testid="stVerticalBlockBorderWrapper"] > div {padding:.52rem .62rem .50rem !important;}
+.panel-heading {display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;border-bottom:1px solid #243740;margin-bottom:8px;}
+.panel-title {font-size:12px;font-weight:760;color:#B5C0C4;letter-spacing:.105em;}
+.panel-note {font-size:8px;color:#5D737E;letter-spacing:.07em;}
 
-/* ==========================================================
-   H. EUROPE ACTOR TABLE
-   ========================================================== */
-.eu-summary {display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:7px;}
-.eu-summary-card {
-    border-radius:9px;
-    background:#142534;
-    border:1px solid #294052;
-    padding:8px 9px;
-}
-.eu-summary-label {font-size:9px; color:#7593A9; font-weight:760; letter-spacing:.09em;}
-.eu-summary-value {font-size:22px; font-weight:760; line-height:1; margin-top:3px; color:#F1F5F7;}
-.eu-table {width:100%;}
-.eu-actor-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 5px; margin-top:3px;}
-.eu-row {
-    display:grid;
-    grid-template-columns:1.65fr .55fr .68fr .58fr;
-    gap:4px;
-    align-items:center;
-    min-height:29px;
-    padding:4px 7px;
-    border:1px solid #213442;
-    border-radius:8px;
-    background:#0D1B26;
-}
-.eu-colheads {
-    display:grid;
-    grid-template-columns:1.65fr .55fr .68fr .58fr;
-    gap:4px;
-    padding:0 6px;
-    color:#667F92;
-    font-size:9px;
-    font-weight:760;
-    letter-spacing:.08em;
-}
-.eu-namewrap {display:flex; align-items:center; gap:6px; min-width:0;}
-.eu-logo {width:18px; height:18px; object-fit:contain; flex:none;}
-.eu-logo-fallback {
-    width:16px;
-    height:16px;
-    border-radius:5px;
-    border:1px solid #365166;
-    color:#8EA9BB;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:8px;
-    font-weight:760;
-    flex:none;
-}
-.eu-name {font-size:10px; font-weight:680; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.eu-num {font-size:11px; font-weight:760; text-align:right;}
-.eu-muted {color:#70889c;}
+/* EUROPE */
+.eu-kpi-strip {display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px;}
+.eu-kpi {background:#13242C;border:1px solid #2A414B;border-radius:9px;padding:7px 9px;}
+.eu-kpi-label {font-size:8px;color:#7191A0;font-weight:760;letter-spacing:.09em;}
+.eu-kpi-value {color:#F1F4F2;font-size:23px;font-weight:740;line-height:1;margin-top:3px;}
+.cap-grid-v07 {display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.cap-v07 {border-radius:10px;background:#12232B;border:1px solid #29404A;padding:8px 10px;min-height:78px;}
+.cap-v07-head {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cap-v07-title {color:#B1CAD5;font-size:10px;font-weight:760;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cap-v07-main {color:#F4F5F3;font-size:24px;font-weight:740;line-height:1;}
+.cap-v07-meta {display:flex;gap:10px;color:#78909A;font-size:9px;margin-top:7px;}
+.cap-v07-meta strong {color:#D9E1E0;font-weight:740;}
+.cap-v07-sub {color:#5F7782;font-size:8px;margin-top:4px;}
+.programmes {display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.programme-chip {border:1px solid #2E4650;color:#9FB4BE;background:#102027;border-radius:999px;padding:4px 8px;font-size:8px;font-weight:680;}
+.programme-chip.build {border-color:#5A7D8C;color:#B7CDD6;}
+.programme-chip.service {border-color:#5E796D;color:#AAC4B6;}
 
-/* Compact Europe-events subheading inside the Europe panel */
-.eu-subsection-title {
-    margin:6px 0 4px;
-    padding-top:5px;
-    border-top:1px solid #213442;
-    color:#8EB8D0;
-    font-size:10px;
-    font-weight:780;
-    letter-spacing:.11em;
-}
+/* EUROPEAN LAUNCH ECOSYSTEM */
+.ecosystem-head {display:flex;justify-content:space-between;align-items:center;margin-top:9px;padding-top:7px;border-top:1px solid #243740;}
+.ecosystem-title {color:#93AEBB;font-size:9px;font-weight:780;letter-spacing:.11em;}
+.ecosystem-legend {color:#5F7680;font-size:8px;}
+.ecosystem-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:6px;}
+.eco-chip {min-height:28px;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 7px;border-radius:8px;border:1px solid #253A44;background:#0D1A20;}
+.eco-name {min-width:0;color:#BFC9CC;font-size:9px;font-weight:680;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.eco-status {display:flex;align-items:center;gap:4px;flex:none;}
+.dot-active,.dot-plan,.dot-idle {width:7px;height:7px;border-radius:50%;display:inline-block;}
+.dot-active {background:#79AD9A;}
+.dot-plan {border:1px solid #BEA267;background:transparent;}
+.dot-idle {background:#3E5058;}
+.eco-count {color:#E5EAE8;font-size:9px;font-weight:740;}
 
-/* ==========================================================
-   I. WHAT CHANGED + NEXT LAUNCHES
-   ========================================================== */
-.change-row {
-    display:grid;
-    grid-template-columns:3px 1fr auto;
-    gap:7px;
-    padding:5px 0;
-    border-bottom:1px solid #1C2E3B;
-    align-items:center;
-}
-.change-line {width:3px; height:30px; border-radius:4px; background:var(--accent);}
-.change-name {font-size:11px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.change-meta {font-size:9px; color:#698196; margin-top:2px;}
-.change-orbit {font-size:10px; color:#8BA3B6; font-weight:760;}
-.next-card {
-    border-radius:9px;
-    padding:8px 9px;
-    margin-bottom:5px;
-    background:#131F28;
-    border:1px solid #2C3A43;
-}
-.next-date {font-size:10px; color:#BCA56E; font-weight:760;}
-.next-title {font-size:11px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px;}
-.next-provider {font-size:9px; color:#72889A; margin-top:2px;}
+/* WHAT CHANGED */
+.change-v07 {display:grid;grid-template-columns:4px 30px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #1E313A;}
+.change-v07:last-child {border-bottom:none;}
+.change-accent {width:4px;height:34px;border-radius:4px;background:var(--accent);}
+.change-flag {width:27px;height:19px;border-radius:4px;overflow:hidden;border:1px solid #304650;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.change-flag img {width:100%;height:100%;object-fit:cover;}
+.change-main {font-size:11px;color:#EBEFED;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.change-sub {color:#667E88;font-size:8px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.change-orbit {color:#8397A0;font-size:9px;font-weight:740;}
 
-/* ==========================================================
-   J. LAUNCH GALLERY
-   ========================================================== */
-.launch-card {
-    height:clamp(125px,14.0vh,150px);
-    border-radius:12px;
-    overflow:hidden;
-    border:1px solid #263A49;
-    position:relative;
-    background:#0B1822;
-}
-.launch-img {width:100%; height:100%; object-fit:cover; display:block;}
-.launch-placeholder {width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:40px; background:#12222E;}
-.launch-overlay {position:absolute; left:0; right:0; bottom:0; padding:19px 9px 6px; background:linear-gradient(transparent,rgba(6,13,18,.94) 46%);}
-.launch-name {font-size:12px; font-weight:730; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.launch-meta {font-size:10px; color:#9AAEBB; margin-top:3px;}
-.launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(5,10,14,.62); color:#D0D8DE; font-size:7px;}
+/* NEXT LAUNCHES */
+.next-v07 {display:grid;grid-template-columns:63px 1fr;gap:9px;padding:8px 0;border-bottom:1px solid #21343D;}
+.next-v07:last-child {border-bottom:none;}
+.next-when {color:#B8A16D;font-size:10px;font-weight:760;}
+.next-tminus {color:#697F89;font-size:8px;margin-top:2px;}
+.next-name {color:#F0F2F0;font-size:11px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.next-provider {color:#657C86;font-size:8px;margin-top:3px;}
+.featured-label {margin-top:9px;color:#93AEBB;font-size:9px;font-weight:780;letter-spacing:.11em;}
+.featured-fallback {height:205px;margin-top:6px;border:1px solid #2A3E47;border-radius:10px;background:#12232B;display:flex;align-items:center;justify-content:center;color:#78909A;}
 
-/* ==========================================================
-   K. WARNINGS + FOOTER
-   ========================================================== */
-.source-warning {
-    margin:.3rem 0 .15rem;
-    padding:5px 8px;
-    border-radius:7px;
-    background:#2A2418;
-    border:1px solid #574C31;
-    color:#CDBD92;
-    font-size:10px;
-}
-.footerline {display:flex; justify-content:space-between; margin-top:7px; color:#40596D; font-size:8px; letter-spacing:.06em;}
+/* WARNINGS / FOOTER */
+.source-warning {background:#2A2418;border:1px solid #5A4B2D;color:#D8C89E;border-radius:8px;padding:5px 8px;font-size:9px;margin-bottom:4px;}
+.footerline {display:flex;justify-content:space-between;color:#49616A;font-size:7px;letter-spacing:.05em;margin-top:3px;}
 
-/* 16:9 monitor tuning — 24" 1080p is the readability baseline. */
-@media(max-width:1400px){
-  .hero-title{font-size:30px;}
-  .actor-card{min-height:112px;}
-  .actor-big{font-size:32px;}
-  .cap-card{min-height:98px;}
-  .launch-card{height:122px;}
-}
-@media(max-height:820px){
-  /* Only compress when the browser viewport is genuinely short. */
-  .block-container{padding-top:.26rem !important;padding-bottom:.18rem !important;}
-  .hero-title{font-size:29px;}
-  .news-ticker,.news-track{height:24px;}
-  .actor-card{min-height:104px;}
-  .cap-card{min-height:90px;}
-  .eu-row{min-height:26px;}
-  .launch-card{height:108px;}
-  .section-row{margin:.20rem 0 .18rem;}
+@media (max-width:1450px) {
+  .hero-title {font-size:30px;}
+  .actor-big {font-size:29px;}
+  .actor-card {min-height:100px;}
 }
 </style>
 """,
@@ -1203,7 +870,7 @@ div[data-testid="stVerticalBlock"] {
 
 
 # ============================================================
-# RENDER HELPERS
+# 07 · RENDER HELPERS
 # ============================================================
 
 def section_header(title, note=""):
@@ -1214,7 +881,6 @@ def section_header(title, note=""):
 
 
 def raw_html(markup):
-    """Render trusted dashboard HTML without Markdown parsing it as code."""
     if hasattr(st, "html"):
         st.html(markup)
     else:
@@ -1231,123 +897,37 @@ def _display_object_total(known, unknown, estimated=False):
     return text
 
 
-def render_actor_card(actor, launches24, launches7, obj24, obj7, logo=None, data_ok=True):
-    """
-    LOCKED DESIGN RULE FOR TOP CARDS:
-    - Large value = LAST 7 DAYS
-    - Small value underneath = LAST 24 HOURS
-    - Always show a real flag / globe marker
-    - Show both LAUNCHES and NEW OBJECTS
+def flag_markup(actor, css_class="actor-flag"):
+    if actor in ACTOR_FLAG_URLS:
+        return f'<div class="{css_class}"><img src="{ACTOR_FLAG_URLS[actor]}" alt="{actor} flag"></div>'
+    return f'<div class="{css_class}">🌍</div>'
 
-    IMPORTANT: Keep this HTML compact. Blank lines inside nested raw HTML blocks can
-    make Streamlit/Markdown terminate the HTML block and render the remainder as text.
-    """
+
+def render_actor_card(actor, launches24, launches7, obj24, obj7, data_ok=True):
     colour = ACTOR_COLOURS[actor]
-
     l24 = launches24 if data_ok else "—"
     l7 = launches7 if data_ok else "—"
     o24 = obj24 if data_ok else "—"
     o7 = obj7 if data_ok else "—"
-
-    if actor in ACTOR_FLAG_URLS:
-        flag_html = f'<img src="{ACTOR_FLAG_URLS[actor]}" alt="{actor} flag">'
-        flag_class = "actor-flag"
-    else:
-        flag_html = "🌍"
-        flag_class = "actor-flag globe"
-
-    card_html = (
-        f'<div class="actor-card" style="--accent:{colour};">'
-        f'<div class="actor-topline"><div class="actor-name">{actor}</div>'
-        f'<div class="{flag_class}" aria-label="{actor} flag">{flag_html}</div></div>'
+    markup = (
+        f'<div class="actor-card" style="--accent:{colour}">'
+        f'<div class="actor-topline"><div class="actor-name">{actor}</div>{flag_markup(actor)}</div>'
         f'<div class="actor-metrics">'
         f'<div class="actor-metric"><div class="actor-metric-label">LAUNCHES</div>'
-        f'<div class="actor-big">{l7}</div><div class="actor-seven-label">LAST 7 DAYS</div>'
-        f'<div class="actor-24h"><strong>{l24}</strong> · LAST 24H</div></div>'
+        f'<div class="actor-value-line"><div class="actor-big">{l7}</div><div class="actor-period">7 DAYS</div></div>'
+        f'<div class="actor-24h"><strong>{l24}</strong> · 24H</div></div>'
         f'<div class="actor-metric"><div class="actor-metric-label">NEW OBJECTS</div>'
-        f'<div class="actor-big">{o7}</div><div class="actor-seven-label">LAST 7 DAYS</div>'
-        f'<div class="actor-24h"><strong>{o24}</strong> · LAST 24H</div></div>'
+        f'<div class="actor-value-line"><div class="actor-big">{o7}</div><div class="actor-period">7 DAYS</div></div>'
+        f'<div class="actor-24h"><strong>{o24}</strong> · 24H</div></div>'
         f'</div></div>'
-    )
-    st.markdown(card_html, unsafe_allow_html=True)
-
-
-def render_capability_card(item):
-    st.markdown(
-        f"""
-        <div class="cap-card">
-          <div class="cap-title">{esc(item['name'])}</div>
-          <div class="cap-grid">
-            <div class="cap-cell"><div class="cap-label">Δ 7D</div><div class="cap-value">{esc(item['change'])}</div></div>
-            <div class="cap-cell"><div class="cap-label">TOTAL</div><div class="cap-value">{esc(item['total'])}</div></div>
-            <div class="cap-cell"><div class="cap-label">PLAN 30D</div><div class="cap-value">{esc(item['planned'])}</div></div>
-          </div>
-          <div class="cap-sub">{esc(item['sub'])}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_europe_actor_table(recent, upcoming):
-    """Compact two-column European actor matrix for the 16:9 Europe panel."""
-    rows = build_europe_actor_stats(recent, upcoming)
-    total_launches = sum(v["launches_7d"] for _, v in rows)
-    total_objects = sum(v["objects_known"] for _, v in rows)
-    unknown_launches = sum(v["objects_unknown_launches"] for _, v in rows)
-    total_planned = sum(v["planned_30d"] for _, v in rows)
-    any_estimated = any(v["objects_estimated"] for _, v in rows)
-
-    object_total_label = str(total_objects)
-    if unknown_launches:
-        object_total_label = f"≥{total_objects}" if total_objects else "?"
-    if any_estimated and object_total_label != "?":
-        object_total_label += "*"
-
-    cards = []
-    for actor, values in rows:
-        obj = str(values["objects_known"])
-        if values["objects_unknown_launches"]:
-            obj = f"≥{obj}" if values["objects_known"] else "?"
-        if values["objects_estimated"] and obj != "?":
-            obj += "*"
-
-        logo = values["logo"]
-        if logo:
-            logo_html = f'<img class="eu-logo" src="{esc(logo)}" alt="{esc(actor)}">'
-        else:
-            initials = "".join(x[0] for x in actor.split()[:2]).upper()
-            logo_html = f'<div class="eu-logo-fallback">{esc(initials)}</div>'
-
-        active = values["launches_7d"] or values["planned_30d"]
-        opacity = "1" if active else ".48"
-        # Intentionally one-line HTML: avoids Markdown treating nested divs as code blocks.
-        cards.append(
-            f'<div class="eu-row" style="opacity:{opacity}">'
-            f'<div class="eu-namewrap">{logo_html}<div class="eu-name">{esc(actor)}</div></div>'
-            f'<div class="eu-num">{values["launches_7d"]}</div>'
-            f'<div class="eu-num">{obj}</div>'
-            f'<div class="eu-num">{values["planned_30d"]}</div>'
-            f'</div>'
-        )
-
-    markup = (
-        f'<div class="eu-summary">'
-        f'<div class="eu-summary-card"><div class="eu-summary-label">LAUNCHES · 7D</div><div class="eu-summary-value">{total_launches}</div></div>'
-        f'<div class="eu-summary-card"><div class="eu-summary-label">NEW OBJECTS · 7D</div><div class="eu-summary-value">{object_total_label}</div></div>'
-        f'<div class="eu-summary-card"><div class="eu-summary-label">PLANNED · 30D</div><div class="eu-summary-value">{total_planned}</div></div>'
-        f'</div>'
-        f'<div class="eu-colheads"><div>EUROPEAN ACTOR</div><div style="text-align:right">LCH</div><div style="text-align:right">OBJECTS</div><div style="text-align:right">PLAN</div></div>'
-        f'<div class="eu-actor-grid">{"".join(cards)}</div>'
-        f'<div style="font-size:7px;color:#526b7e;margin-top:2px">* estimated minimum · ? catalogue not yet resolved</div>'
     )
     raw_html(markup)
 
+
 def render_news_ticker(items):
     if not items:
-        st.markdown('<div class="news-ticker"><div class="news-track"><div class="news-set"><span class="news-item"><span class="news-source">NEWS</span> Feed temporarily unavailable · automatic retry every 15 minutes</span></div></div></div>', unsafe_allow_html=True)
+        raw_html('<div class="news-ticker"><div class="news-track"><div class="news-set"><span class="news-item"><span class="news-source">NEWS</span>Feed temporarily unavailable · automatic retry every 15 minutes</span></div></div></div>')
         return
-
     parts = []
     for item in items[:8]:
         title = esc(item.get("title"))
@@ -1358,63 +938,102 @@ def render_news_ticker(items):
         else:
             title_html = title
         parts.append(f'<span class="news-item"><span class="news-source">{source}</span>{title_html}</span><span class="news-dot">◆</span>')
-    one_set = ''.join(parts)
-    st.markdown(f'<div class="news-ticker"><div class="news-track"><div class="news-set">{one_set}</div><div class="news-set" aria-hidden="true">{one_set}</div></div></div>', unsafe_allow_html=True)
+    one_set = "".join(parts)
+    raw_html(f'<div class="news-ticker"><div class="news-track"><div class="news-set">{one_set}</div><div class="news-set" aria-hidden="true">{one_set}</div></div></div>')
 
 
-def orbit_visual(recent):
+def capability_markup(item):
+    return (
+        f'<div class="cap-v07">'
+        f'<div class="cap-v07-head"><div class="cap-v07-title">{esc(item["name"])}</div>'
+        f'<div class="cap-v07-main">{esc(item["total"])}</div></div>'
+        f'<div class="cap-v07-meta"><span>Δ7D <strong>{esc(item["change"])}</strong></span>'
+        f'<span>PLAN <strong>{esc(item["planned"])}</strong></span></div>'
+        f'<div class="cap-v07-sub">{esc(item["sub"])}</div>'
+        f'</div>'
+    )
+
+
+def render_europe_panel(recent, upcoming, ytd):
+    caps = europe_capability_stats(recent, upcoming, ytd)
+    rows = build_europe_actor_stats(recent, upcoming)
+    total_launches = sum(v["launches_7d"] for _, v in rows)
+    total_objects = sum(v["objects_known"] for _, v in rows)
+    unknown_launches = sum(v["objects_unknown_launches"] for _, v in rows)
+    total_planned = sum(v["planned_30d"] for _, v in rows)
+    any_estimated = any(v["objects_estimated"] for _, v in rows)
+    object_total = str(total_objects)
+    if unknown_launches:
+        object_total = f"≥{total_objects}" if total_objects else "?"
+    if any_estimated and object_total != "?":
+        object_total += "*"
+    cap_html = "".join(capability_markup(x) for x in caps)
+    chips = []
+    for actor, values in rows:
+        active = values["launches_7d"] > 0
+        planned = values["planned_30d"] > 0
+        dot_a = '<span class="dot-active"></span>' if active else '<span class="dot-idle"></span>'
+        dot_p = '<span class="dot-plan"></span>' if planned else ''
+        activity = []
+        if active:
+            activity.append(f'{values["launches_7d"]}×7D')
+        if planned:
+            activity.append(f'{values["planned_30d"]}×30D')
+        count_txt = " · ".join(activity) if activity else ""
+        chips.append(
+            f'<div class="eco-chip" title="{esc(actor)}"><div class="eco-name">{esc(actor)}</div>'
+            f'<div class="eco-status">{dot_a}{dot_p}<span class="eco-count">{esc(count_txt)}</span></div></div>'
+        )
+    markup = (
+        f'<div class="eu-kpi-strip">'
+        f'<div class="eu-kpi"><div class="eu-kpi-label">LAUNCHES · 7D</div><div class="eu-kpi-value">{total_launches}</div></div>'
+        f'<div class="eu-kpi"><div class="eu-kpi-label">NEW OBJECTS · 7D</div><div class="eu-kpi-value">{object_total}</div></div>'
+        f'<div class="eu-kpi"><div class="eu-kpi-label">PLANNED · 30D</div><div class="eu-kpi-value">{total_planned}</div></div>'
+        f'</div>'
+        f'<div class="cap-grid-v07">{cap_html}</div>'
+        f'<div class="programmes">'
+        f'<span class="programme-chip build">IRIS² · BUILDING</span>'
+        f'<span class="programme-chip service">GOVSATCOM · SERVICE</span>'
+        f'<span class="programme-chip">ARIANE 6</span><span class="programme-chip">VEGA-C</span>'
+        f'<span class="programme-chip">SPECTRUM</span><span class="programme-chip">RFA ONE</span>'
+        f'</div>'
+        f'<div class="ecosystem-head"><div class="ecosystem-title">EUROPEAN LAUNCH ECOSYSTEM</div>'
+        f'<div class="ecosystem-legend">● active 7d · ○ planned 30d</div></div>'
+        f'<div class="ecosystem-grid">{"".join(chips)}</div>'
+    )
+    raw_html(markup)
+
+
+def orbit_visual_v07(recent):
     counts = defaultdict(int)
     for launch in recent:
         counts[orbit_group(launch)] += 1
-
-    # Dots are mathematically placed ON each ring.
-    # Centre=(210,145), radii: LEO=48, MEO=88, GEO=128.
     svg = f"""
     <html><head><style>
-      body{{margin:0;background:transparent;color:#EDF2F5;font-family:Inter,Segoe UI,Arial,sans-serif;}}
-      .wrap{{height:318px;border-radius:12px;background:#0D1B26;position:relative;border:1px solid #213442;}}
-      svg{{width:100%;height:276px;display:block;}}
-      .ring{{fill:none;stroke-width:1.35;}}
-      .label{{font-size:12px;font-weight:760;letter-spacing:1px;}}
+      body{{margin:0;background:transparent;color:#EEF2F0;font-family:Inter,Segoe UI,Arial,sans-serif;}}
+      .wrap{{height:274px;border-radius:10px;background:#0D1A20;border:1px solid #243842;}}
+      svg{{width:100%;height:268px;display:block;}}
+      .ring{{fill:none;stroke-width:1.2;}}
+      .label{{font-size:12px;font-weight:760;letter-spacing:.8px;}}
       .count{{font-size:18px;font-weight:760;}}
-      .earth{{fill:#17384B;stroke:#577B91;stroke-width:1.1;}}
-      .minor{{font-size:10px;fill:#6F8596;}}
-      .legend{{display:flex;justify-content:center;gap:24px;font-size:10px;color:#7890A0;margin-top:-7px;}}
-      .dot{{filter:none;}}
-    </style></head><body>
-      <div class="wrap">
-      <svg viewBox="0 0 420 250" role="img" aria-label="LEO MEO GEO orbital activity">
-        <circle cx="210" cy="125" r="128" class="ring" stroke="#B99C62" opacity=".60"/>
-        <circle cx="210" cy="125" r="88" class="ring" stroke="#6EAF9B" opacity=".66"/>
-        <circle cx="210" cy="125" r="48" class="ring" stroke="#5FA7D8" opacity=".75"/>
-        <circle cx="210" cy="125" r="27" class="earth"/>
-        <text x="210" y="129" text-anchor="middle" fill="#e7f4fc" font-size="10" font-weight="850">EARTH</text>
-
-        <!-- LEO marker, angle 140°, radius 48 -->
-        <circle cx="173.2" cy="155.9" r="5" fill="#5FA7D8" class="dot"/>
-        <text x="154" y="170" text-anchor="middle" fill="#8FB9D0" class="label">LEO</text>
-        <text x="154" y="184" text-anchor="middle" fill="#ffffff" class="count">{counts['LEO']}</text>
-
-        <!-- MEO marker, angle -42°, radius 88 -->
-        <circle cx="275.4" cy="66.1" r="5" fill="#6EAF9B" class="dot"/>
-        <text x="294" y="57" text-anchor="middle" fill="#91C7B6" class="label">MEO</text>
-        <text x="294" y="71" text-anchor="middle" fill="#ffffff" class="count">{counts['MEO']}</text>
-
-        <!-- GEO marker, angle 18°, radius 128 -->
-        <circle cx="331.7" cy="164.6" r="5" fill="#B99C62" class="dot"/>
-        <text x="353" y="165" text-anchor="middle" fill="#C8B17B" class="label">GEO</text>
-        <text x="353" y="179" text-anchor="middle" fill="#ffffff" class="count">{counts['GEO']}</text>
-
-        <text x="210" y="235" text-anchor="middle" class="minor">launch destination / mission orbit · last 7 days</text>
-      </svg>
-      <div class="legend"><span>● LEO</span><span>● MEO</span><span>● GEO</span></div>
-      </div>
-    </body></html>
+      .earth{{fill:#173440;stroke:#62828F;stroke-width:1;}}
+      .minor{{font-size:9px;fill:#657B84;}}
+    </style></head><body><div class="wrap"><svg viewBox="0 0 420 250">
+      <circle cx="210" cy="122" r="126" class="ring" stroke="#B8A169" opacity=".58"/>
+      <circle cx="210" cy="122" r="87" class="ring" stroke="#7FAE9C" opacity=".65"/>
+      <circle cx="210" cy="122" r="48" class="ring" stroke="#6FAFD2" opacity=".74"/>
+      <circle cx="210" cy="122" r="25" class="earth"/>
+      <text x="210" y="126" text-anchor="middle" fill="#EEF3F0" font-size="10" font-weight="800">EARTH</text>
+      <circle cx="173.2" cy="152.9" r="4.8" fill="#6FAFD2"/><text x="154" y="167" text-anchor="middle" fill="#8EBBD0" class="label">LEO</text><text x="154" y="181" text-anchor="middle" fill="#fff" class="count">{counts['LEO']}</text>
+      <circle cx="274.7" cy="63.8" r="4.8" fill="#7FAE9C"/><text x="294" y="55" text-anchor="middle" fill="#9BC0B2" class="label">MEO</text><text x="294" y="69" text-anchor="middle" fill="#fff" class="count">{counts['MEO']}</text>
+      <circle cx="329.8" cy="160.9" r="4.8" fill="#B8A169"/><text x="351" y="161" text-anchor="middle" fill="#C7B481" class="label">GEO</text><text x="351" y="175" text-anchor="middle" fill="#fff" class="count">{counts['GEO']}</text>
+      <text x="210" y="232" text-anchor="middle" class="minor">mission destination / launch orbit · last 7 days</text>
+    </svg></div></body></html>
     """
-    components.html(svg, height=278, scrolling=False)
+    components.html(svg, height=276, scrolling=False)
 
 
-def render_changes(recent, limit=6):
+def render_changes_v07(recent, limit=3):
     if not recent:
         st.caption("No recent launch data available.")
         return
@@ -1422,37 +1041,37 @@ def render_changes(recent, limit=6):
         actor = major_actor(launch)
         colour = ACTOR_COLOURS[actor]
         d = parse_dt(launch.get("net"))
-        when = d.astimezone(LOCAL_TZ).strftime("%d %b · %H:%M") if d else ""
+        when = d.astimezone(LOCAL_TZ).strftime("%d %b") if d else ""
         count, source = object_count_for_launch(launch)
-        obj = "? obj" if count is None else f"+{count}{'*' if source == 'estimated' else ''} obj"
-        st.markdown(
-            f"""
-            <div class="change-row" style="--accent:{colour}">
-              <div class="change-line"></div>
-              <div><div class="change-name">{esc(launch.get('name'))}</div><div class="change-meta">{actor} · {esc(launch_provider_name(launch))} · {when} · {obj}</div></div>
-              <div class="change-orbit">{orbit_group(launch)}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        obj = "catalogue pending" if count is None else f'+{count}{"*" if source == "estimated" else ""} objects'
+        flag = flag_markup(actor, "change-flag")
+        raw_html(
+            f'<div class="change-v07" style="--accent:{colour}"><div class="change-accent"></div>{flag}'
+            f'<div><div class="change-main">{esc(launch.get("name"))}</div><div class="change-sub">{esc(actor)} · {esc(when)} · {esc(obj)}</div></div>'
+            f'<div class="change-orbit">{orbit_group(launch)}</div></div>'
         )
 
 
-def render_upcoming(upcoming, limit=5):
+def _tminus_label(d):
+    if not d:
+        return ""
+    delta = d - datetime.now(timezone.utc)
+    hours = max(0, int(delta.total_seconds() // 3600))
+    if hours < 24:
+        return f"T−{hours}H"
+    return f"T−{max(1, int(round(hours / 24)))}D"
+
+
+def render_upcoming_v07(upcoming, limit=3):
     if not upcoming:
         st.caption("Upcoming launch data unavailable.")
         return
     for launch in upcoming[:limit]:
         d = parse_dt(launch.get("net"))
         when = d.astimezone(LOCAL_TZ).strftime("%d %b · %H:%M") if d else "TBD"
-        st.markdown(
-            f"""
-            <div class="next-card">
-              <div class="next-date">{when}</div>
-              <div class="next-title">{esc(launch.get('name'))}</div>
-              <div class="next-provider">{esc(launch_provider_name(launch))} · {orbit_group(launch)}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        raw_html(
+            f'<div class="next-v07"><div><div class="next-when">{esc(when)}</div><div class="next-tminus">{esc(_tminus_label(d))}</div></div>'
+            f'<div><div class="next-name">{esc(launch.get("name"))}</div><div class="next-provider">{esc(launch_provider_name(launch))} · {orbit_group(launch)}</div></div></div>'
         )
 
 
@@ -1461,31 +1080,55 @@ def launch_image_data(launch):
     return image.get("image_url"), image.get("credit") or ""
 
 
-def render_launch_card(launch):
-    url, credit = launch_image_data(launch)
-    d = parse_dt(launch.get("net"))
-    when = d.astimezone(LOCAL_TZ).strftime("%d %b") if d else ""
-    if url:
-        visual = f'<img class="launch-img" src="{esc(url)}">'
+def featured_launch_slideshow(recent):
+    with_images = [x for x in recent if launch_image_data(x)[0]]
+    if not with_images:
+        raw_html('<div class="featured-fallback">Launch image feed unavailable</div>')
+        return
+    chosen = []
+    europe = [x for x in with_images if major_actor(x) == "EUROPE"]
+    if europe:
+        chosen.append(europe[0])
+    for launch in with_images:
+        if len(chosen) >= 3:
+            break
+        if launch not in chosen:
+            chosen.append(launch)
+    slides = []
+    for i, launch in enumerate(chosen):
+        url, credit = launch_image_data(launch)
+        d = parse_dt(launch.get("net"))
+        when = d.astimezone(LOCAL_TZ).strftime("%d %b") if d else ""
+        slides.append(f'''<div class="slide s{i}"><img src="{esc(url)}" alt="{esc(launch.get("name"))}"><div class="shade"></div><div class="credit">{esc(credit)}</div><div class="caption"><div class="cap-title">{esc(launch.get("name"))}</div><div class="cap-meta">{esc(major_actor(launch))} · {esc(when)} · {esc(orbit_group(launch))}</div></div></div>''')
+    if len(chosen) == 1:
+        anim_duration = 9999
+        delay_css = ".s0{opacity:1 !important;}"
+        keyframes = "@keyframes fade {0%,100%{opacity:1}}"
     else:
-        visual = '<div class="launch-placeholder">🚀</div>'
-    credit_html = f'<div class="launch-credit">{esc(credit)}</div>' if credit else ""
-    st.markdown(
-        f"""
-        <div class="launch-card">
-          {visual}{credit_html}
-          <div class="launch-overlay">
-            <div class="launch-name">{esc(launch.get('name'))}</div>
-            <div class="launch-meta">{major_actor(launch)} · {when} · {orbit_group(launch)}</div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        anim_duration = len(chosen) * 8
+        delay_css = "\n".join(f".s{i}{{animation-delay:{i*8}s;}}" for i in range(len(chosen)))
+        visible_pct = int(100 / len(chosen))
+        keyframes = f"@keyframes fade {{0%{{opacity:0}} 4%{{opacity:1}} {max(10, visible_pct-4)}%{{opacity:1}} {visible_pct}%{{opacity:0}} 100%{{opacity:0}}}}"
+    html_blob = f"""
+    <html><head><style>
+      body{{margin:0;background:transparent;font-family:Inter,Segoe UI,Arial,sans-serif;}}
+      .frame{{height:214px;border:1px solid #2A3E47;border-radius:10px;overflow:hidden;position:relative;background:#111F26;}}
+      .slide{{position:absolute;inset:0;opacity:0;animation:fade {anim_duration}s linear infinite;}}
+      .slide img{{width:100%;height:100%;object-fit:cover;display:block;}}
+      .shade{{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 34%,rgba(4,10,14,.88) 100%);}}
+      .caption{{position:absolute;left:12px;right:12px;bottom:10px;color:#F4F6F4;}}
+      .cap-title{{font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+      .cap-meta{{font-size:9px;color:#C0CBCE;margin-top:3px;}}
+      .credit{{position:absolute;right:7px;top:6px;background:rgba(4,10,14,.58);color:#CAD2D3;padding:2px 5px;border-radius:4px;font-size:7px;}}
+      {delay_css}
+      {keyframes}
+    </style></head><body><div class="frame">{"".join(slides)}</div></body></html>
+    """
+    components.html(html_blob, height=216, scrolling=False)
 
 
 # ============================================================
-# DASHBOARD
+# 08 · DASHBOARD · v0.7
 # ============================================================
 
 @st.fragment(run_every=900)
@@ -1494,44 +1137,24 @@ def render_dashboard():
     upcoming, upcoming_ok = get_upcoming_launches(30)
     news, news_ok = get_news()
     now = datetime.now(LOCAL_TZ)
-
-    # Primary live status is launch activity. Catalogue/YTD are secondary feeds.
     status = "LIVE" if recent_ok and upcoming_ok else "PARTIAL DATA"
     dot = '<span class="live-dot"></span>' if recent_ok else ""
-
-    st.markdown(
-        f"""
-        <div class="hero">
-          <div><div class="hero-title">SPACE UPDATE</div><div class="hero-sub">GLOBAL SPACE ACTIVITY · 7 DAY PICTURE</div></div>
-          <div class="hero-time">{dot}{status}<strong>{now.strftime('%d %b · %H:%M')}</strong></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    raw_html(
+        f'<div class="hero"><div><div class="hero-title">SPACE UPDATE</div><div class="hero-sub">GLOBAL SPACE ACTIVITY · 7 DAY PICTURE</div></div>'
+        f'<div class="hero-time">{dot}{status}<strong>{now.strftime("%d %b · %H:%M")}</strong></div></div>'
     )
-
     render_news_ticker(news)
-
     if not recent_ok or not upcoming_ok:
-        st.markdown('<div class="source-warning">Launch Library is temporarily unavailable. Values are shown as — and the dashboard will retry automatically; no failed response is cached.</div>', unsafe_allow_html=True)
+        raw_html('<div class="source-warning">Live launch data is temporarily incomplete. The dashboard retries automatically.</div>')
 
-    # -------------------- Major actors --------------------
-    section_header("NEW EVENTS BY MAJOR ACTOR", "AUTO · LAUNCHES + NEW ORBITAL OBJECTS · BIG = 7D · SMALL = 24H")
-
-    # The header + news ticker are already on screen before the slower SATCAT work.
-    # This is the only bounded catalogue warm-up in the render; later sections reuse it.
+    section_header("MAJOR ACTORS", "7 DAYS · 24H SHOWN AS SECONDARY")
     if recent:
         prefetch_object_catalogue(recent)
-
     now_utc = datetime.now(timezone.utc)
-    counts7 = defaultdict(int)
-    counts24 = defaultdict(int)
-    obj7_known = defaultdict(int)
-    obj24_known = defaultdict(int)
-    obj7_unknown = defaultdict(int)
-    obj24_unknown = defaultdict(int)
-    obj7_est = defaultdict(bool)
-    obj24_est = defaultdict(bool)
-
+    counts7 = defaultdict(int); counts24 = defaultdict(int)
+    obj7_known = defaultdict(int); obj24_known = defaultdict(int)
+    obj7_unknown = defaultdict(int); obj24_unknown = defaultdict(int)
+    obj7_est = defaultdict(bool); obj24_est = defaultdict(bool)
     for launch in recent:
         actor = major_actor(launch)
         counts7[actor] += 1
@@ -1539,85 +1162,42 @@ def render_dashboard():
         is24 = bool(d and d >= now_utc - timedelta(hours=24))
         if is24:
             counts24[actor] += 1
-
         count, source = object_count_for_launch(launch)
         if count is None:
             obj7_unknown[actor] += 1
-            if is24:
-                obj24_unknown[actor] += 1
+            if is24: obj24_unknown[actor] += 1
         else:
             obj7_known[actor] += count
-            if source == "estimated":
-                obj7_est[actor] = True
+            if source == "estimated": obj7_est[actor] = True
             if is24:
                 obj24_known[actor] += count
-                if source == "estimated":
-                    obj24_est[actor] = True
-
-    actor_logos = {}
-    for launch in recent:
-        actor = major_actor(launch)
-        if actor not in actor_logos:
-            logo = provider_logo_from_launch(launch)
-            if logo:
-                actor_logos[actor] = logo
-
+                if source == "estimated": obj24_est[actor] = True
     cols = st.columns(5, gap="small")
     for col, actor in zip(cols, ["EUROPE", "USA", "CHINA", "RUSSIA", "OTHER"]):
         with col:
             o24 = _display_object_total(obj24_known[actor], obj24_unknown[actor], obj24_est[actor])
             o7 = _display_object_total(obj7_known[actor], obj7_unknown[actor], obj7_est[actor])
-            render_actor_card(actor, counts24[actor], counts7[actor], o24, o7, actor_logos.get(actor), recent_ok)
+            render_actor_card(actor, counts24[actor], counts7[actor], o24, o7, recent_ok)
 
-    # -------------------- Main area --------------------
-    left, middle, right = st.columns([1.12, 1.05, .83], gap="small")
-
-    # Fill the fast panels first so the wall display never looks empty while a secondary catalogue responds.
-    with middle:
-        with st.container(border=True):
-            st.markdown('<div class="accent-green"></div><div class="panel-title">ORBITAL ACTIVITY · LAST 7 DAYS</div>', unsafe_allow_html=True)
-            orbit_visual(recent)
-            st.markdown('<div class="panel-title" style="margin-top:-3px">WHAT CHANGED?</div>', unsafe_allow_html=True)
-            render_changes(recent, limit=4)
-
-    with right:
-        with st.container(border=True):
-            st.markdown('<div class="accent-gold"></div><div class="panel-title">NEXT LAUNCHES · 30 DAYS</div>', unsafe_allow_html=True)
-            render_upcoming(upcoming, limit=5)
-
+    left, middle, right = st.columns([1.14, 1.04, .82], gap="small")
     with left:
         with st.container(border=True):
-            st.markdown('<div class="accent-blue"></div><div class="panel-title">EUROPE · CAPABILITY PICTURE</div>', unsafe_allow_html=True)
-            # YTD is secondary data. Fetch it only now, after the actor/orbit/next-launch panels exist.
+            raw_html('<div class="panel-heading"><div class="panel-title">EUROPE</div><div class="panel-note">CAPABILITY · CHANGE · PLAN</div></div>')
             ytd, ytd_ok = get_ytd_launches()
-            caps = europe_capability_stats(recent, upcoming, ytd if ytd_ok else None)
-            c1, c2 = st.columns(2, gap="small")
-            with c1:
-                render_capability_card(caps[0])
-                render_capability_card(caps[2])
-            with c2:
-                render_capability_card(caps[1])
-                render_capability_card(caps[3])
-            st.markdown('<div class="watchbar"><b>EUROPE · BUILDING / WATCH</b><span>IRIS² · GOVSATCOM · Ariane 6 · Vega-C · Spectrum · RFA One · Orbex Prime · Miura 5</span></div>', unsafe_allow_html=True)
-            st.markdown('<div class="eu-subsection-title">EUROPE EVENTS · ALL LAUNCH ACTORS · LCH / OBJECTS / PLAN 30D</div>', unsafe_allow_html=True)
-            render_europe_actor_table(recent, upcoming)
-
-    # -------------------- Launch gallery --------------------
-    section_header("LAUNCHES · LAST 7 DAYS", "IMAGES · SOURCE/CREDIT SHOWN ON IMAGE")
-    image_launches = [x for x in recent if launch_image_data(x)[0]]
-    chosen = image_launches[:3] if len(image_launches) >= 3 else recent[:3]
-    gallery_cols = st.columns(3, gap="small")
-    for i, col in enumerate(gallery_cols):
-        with col:
-            if i < len(chosen):
-                render_launch_card(chosen[i])
-            else:
-                st.markdown('<div class="launch-card"><div class="launch-placeholder">🛰️</div></div>', unsafe_allow_html=True)
-
-    st.markdown(
-        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 single-screen · v0.6.4 readable · launch/news 15 min · SATCAT fast-cache 5 min/6 h</span></div>',
-        unsafe_allow_html=True,
-    )
+            render_europe_panel(recent, upcoming, ytd if ytd_ok else None)
+    with middle:
+        with st.container(border=True):
+            raw_html('<div class="panel-heading"><div class="panel-title">ORBITAL PICTURE</div><div class="panel-note">LAUNCH DESTINATIONS · 7D</div></div>')
+            orbit_visual_v07(recent)
+            raw_html('<div class="panel-heading" style="margin-top:7px"><div class="panel-title">WHAT CHANGED?</div><div class="panel-note">TOP 3</div></div>')
+            render_changes_v07(recent, limit=3)
+    with right:
+        with st.container(border=True):
+            raw_html('<div class="panel-heading"><div class="panel-title">NEXT LAUNCHES</div><div class="panel-note">30 DAYS</div></div>')
+            render_upcoming_v07(upcoming, limit=3)
+            raw_html('<div class="featured-label">FEATURED LAUNCH</div>')
+            featured_launch_slideshow(recent)
+    raw_html('<div class="footerline"><span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>v0.7 Nordic · 16:9 · 24–40\" · refresh 15 min</span></div>')
 
 
 render_dashboard()
