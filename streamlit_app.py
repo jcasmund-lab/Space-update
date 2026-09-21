@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.9.3 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.4 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -83,11 +83,11 @@ MILITARY_SPACE_QUERY_FEEDS = [
     ("Search: military PNT",
      "https://news.google.com/rss/search?q=military+PNT+OR+%22resilient+PNT%22+OR+GNSS+military+spoofing+jamming&hl=en-US&gl=US&ceid=US:en", 1),
     ("Search: military ISR space",
-     "https://news.google.com/rss/search?q=%22military+satellite%22+ISR+OR+reconnaissance+OR+surveillance&hl=en-US&gl=US&ceid=US:en", 1),
+     "https://news.google.com/rss/search?q=%28%22military+satellite%22+OR+%22reconnaissance+satellite%22+OR+%22surveillance+satellite%22%29&hl=en-US&gl=US&ceid=US:en", 1),
     ("Search: responsive launch",
      "https://news.google.com/rss/search?q=%22responsive+space%22+OR+%22tactically+responsive+space%22+OR+military+launch+satellite&hl=en-US&gl=US&ceid=US:en", 2),
     ("Search: military space acquisition",
-     "https://news.google.com/rss/search?q=%22Space+Force%22+satellite+contract+OR+procurement+OR+acquisition&hl=en-US&gl=US&ceid=US:en", 1),
+     "https://news.google.com/rss/search?q=%22Space+Force%22+%28satellite+OR+space%29+%28contract+OR+procurement+OR+acquisition%29&hl=en-US&gl=US&ceid=US:en", 1),
     ("Search: China military space",
      "https://news.google.com/rss/search?q=China+military+space+OR+PLA+satellite+OR+ASAT+OR+%22space+domain%22&hl=en-US&gl=US&ceid=US:en", 1),
     ("Search: Russia military space",
@@ -2491,29 +2491,122 @@ MILITARY_SPACE_DOWNRANK = {
 }
 
 def military_space_score(item):
-    """Broad military-space relevance score for the rotating watch."""
+    """
+    Precision-first military-space relevance score.
+
+    Rule:
+    A story must look like a SPACE story from the headline itself.
+    We do not allow generic Air Force / aviation / missile stories to qualify
+    just because the feed description or publisher boilerplate contains
+    words such as "space" or "Space Force".
+    """
     title = str(item.get("title") or "")
     summary = re.sub(r"<[^>]+>", " ", str(item.get("summary") or ""))
-    low = f"{title} {summary}".lower()
+
+    title_low = title.lower()
+    full_low = f"{title} {summary}".lower()
+
+    # Strong title-level space anchors.
+    title_space_anchors = [
+        "space",
+        "satellite",
+        "satcom",
+        "orbit",
+        "orbital",
+        "asat",
+        "anti-satellite",
+        "counterspace",
+        "counter-space",
+        "gnss",
+        "gps",
+        "pnt",
+        "starlink",
+        "galileo",
+        "oneweb",
+        "space force",
+        "space command",
+        "space domain awareness",
+        "space situational awareness",
+        "space surveillance",
+        "space control",
+        "responsive space",
+        "military satellite",
+        "reconnaissance satellite",
+        "surveillance satellite",
+        "synthetic aperture radar satellite",
+    ]
+
+    has_title_space_anchor = any(
+        term in title_low for term in title_space_anchors
+    )
+
+    # Very strong phrases may qualify even when the word "space" is absent.
+    strong_title_exceptions = [
+        "anti-satellite",
+        "antisatellite",
+        "asat",
+        "gnss jamming",
+        "gps jamming",
+        "gnss spoofing",
+        "gps spoofing",
+        "satellite jamming",
+        "satellite communications",
+    ]
+    has_strong_exception = any(
+        term in title_low for term in strong_title_exceptions
+    )
+
+    # Reject generic terrestrial military/aviation stories unless the title
+    # itself clearly establishes a space-domain connection.
+    terrestrial_terms = [
+        "f-15", "f-16", "f-22", "f-35",
+        "fighter", "strike eagle", "bomber",
+        "drone-busting", "drone busting",
+        "air defense", "air defence",
+        "missile defense", "missile defence",
+        "rocket motor", "artillery", "tank",
+        "helicopter", "munitions",
+    ]
+
+    if (
+        any(term in title_low for term in terrestrial_terms)
+        and not has_title_space_anchor
+        and not has_strong_exception
+    ):
+        return 0
+
+    # Precision-first gate:
+    # if the headline itself does not signal space, reject the story.
+    if not has_title_space_anchor and not has_strong_exception:
+        return 0
 
     subject_score = 0
     for term, points in MILITARY_SPACE_TERMS.items():
-        if term in low:
+        if term in full_low:
             subject_score += points
 
     action_score = 0
     for term, points in MILITARY_SPACE_ACTION_TERMS.items():
-        if term in low:
+        if term in full_low:
             action_score += points
 
-    if subject_score < 7:
-        return 0
-
-    score = subject_score + action_score
+    # Headline anchor itself is meaningful evidence.
+    score = subject_score + action_score + 5
 
     for term, penalty in MILITARY_SPACE_DOWNRANK.items():
-        if term in low:
+        if term in full_low:
             score += penalty
+
+    # Extra preference for headlines that are unmistakably military-space.
+    high_value_title_terms = [
+        "counterspace", "space control", "space force", "space command",
+        "military satellite", "space domain awareness",
+        "space situational awareness", "satcom", "anti-satellite",
+        "asat", "orbital weapon", "on-orbit weapon",
+        "responsive space", "gnss jamming", "gps jamming",
+    ]
+    if any(term in title_low for term in high_value_title_terms):
+        score += 8
 
     dt = item.get("date")
     if dt:
@@ -2528,7 +2621,8 @@ def military_space_score(item):
         elif age_hours <= 720:
             score += 1
 
-    return max(0, score)
+    # Still require a meaningful total score.
+    return max(0, score) if score >= 10 else 0
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -3561,8 +3655,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · DISTINCT STORIES · GENERIC/REPEATED IMAGES SUPPRESSED</span>'
-        '<span>v0.9.3 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · STRICT SPACE-TITLE FILTER · GENERIC IMAGES SUPPRESSED</span>'
+        '<span>v0.9.4 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
