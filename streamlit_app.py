@@ -17,7 +17,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.8 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.8.9 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -63,6 +63,7 @@ COUNTERSPACE_FEEDS = [
     ("SpaceNews", "https://spacenews.com/feed/", 0),
     ("DefenseScoop", "https://defensescoop.com/feed/", 0),
     ("Breaking Defense", "https://feeds.feedburner.com/BreakingDefense", 1),
+    ("Air & Space Forces", "https://www.airandspaceforces.com/feed/", 1),
     ("Spaceflight Now", "https://spaceflightnow.com/feed/", 2),
 ]
 
@@ -2298,12 +2299,21 @@ def featured_launch_slideshow_v08(recent):
 # ============================================================
 
 COUNTERSPACE_CORE_TERMS = {
+    # Direct counterspace / space-control language
     "counterspace": 12,
     "counter-space": 12,
     "space control": 12,
     "space-control": 12,
     "space weapon": 12,
     "space weapons": 12,
+    "space fires": 11,
+    "space combat power": 10,
+    "space superiority": 9,
+    "orbital warfare": 10,
+    "offensive space": 9,
+    "defensive space": 7,
+
+    # On-orbit / kinetic / non-kinetic weapons
     "weapon in orbit": 12,
     "weapons in orbit": 12,
     "on-orbit weapon": 12,
@@ -2313,17 +2323,37 @@ COUNTERSPACE_CORE_TERMS = {
     "anti-satellite": 12,
     "antisatellite": 12,
     "asat": 12,
+    "orbital strike": 11,
+    "space link interdiction": 11,
+
+    # RPO / manoeuvre / targeting enablers
     "co-orbital": 9,
     "coorbital": 9,
     "proximity operations": 8,
     "proximity operation": 8,
     "rendezvous and proximity": 8,
+    "space maneuver": 7,
+    "space manoeuvre": 7,
+    "maneuver warfare": 7,
+    "manoeuvre warfare": 7,
+    "space domain awareness": 6,
+    "space targeting": 8,
+    "target threats on orbit": 8,
+    "targeting in the space domain": 8,
+
+    # Electromagnetic / directed-energy counterspace
     "space electronic warfare": 10,
+    "space electromagnetic warfare": 10,
     "satellite jamming": 9,
     "satcom jamming": 9,
+    "counter communications system": 11,
+    "counter communications": 9,
+    "meadowlands": 11,
+    "remote modular terminal": 10,
     "directed energy": 9,
     "laser dazzling": 9,
 }
+
 
 CAPABILITY_ACTION_TERMS = {
     "deploy": 7,
@@ -2349,16 +2379,30 @@ CAPABILITY_ACTION_TERMS = {
     "investment": 5,
     "develop": 4,
     "developing": 4,
+    "prototype": 6,
+    "prototyping": 6,
+    "production": 6,
+    "delivery": 5,
+    "delivered": 6,
+    "accept": 5,
+    "accepted": 6,
+    "approve": 5,
+    "approved": 6,
     "demonstration": 5,
     "demonstrate": 5,
     "test": 4,
-    "exercise": 4,
+    "exercise": 5,
     "operational": 5,
     "capability": 5,
     "system": 3,
     "unit": 3,
     "squadron": 4,
+    "targeting": 4,
+    "track": 3,
+    "tracking": 3,
+    "software": 3,
 }
+
 
 COUNTERSPACE_DOWNRANK = {
     # Useful resilience/PNT stories, but not the capability-watch product
@@ -2410,6 +2454,12 @@ def counterspace_score(item):
             "anti-satellite weapon",
             "counterspace capability",
             "counter-space capability",
+            "space control operations",
+            "space combat power",
+            "space fires",
+            "counter communications system",
+            "meadowlands",
+            "remote modular terminal",
         ]
     )
 
@@ -2479,7 +2529,7 @@ def _counterspace_archive_cached():
                 if x.tag.split("}")[-1].lower() in ("item", "entry")
             ]
 
-            for item in candidates[:50]:
+            for item in candidates[:75]:
                 title = _xml_text(item, {"title"}).strip()
                 if not title:
                     continue
@@ -2560,10 +2610,10 @@ def _counterspace_archive_cached():
         return out
 
     items = []
-    with ThreadPoolExecutor(max_workers=len(NEWS_FEEDS)) as pool:
+    with ThreadPoolExecutor(max_workers=len(COUNTERSPACE_FEEDS)) as pool:
         futures = [
             pool.submit(parse_feed, source, url, priority)
-            for source, url, priority in NEWS_FEEDS
+            for source, url, priority in COUNTERSPACE_FEEDS
         ]
         for future in as_completed(futures):
             try:
@@ -2629,18 +2679,60 @@ CURATED_COUNTERSPACE_FALLBACK = {
     "counterspace_score": 100,
 }
 
-def get_counterspace_items(news, limit=4):
+def _counterspace_title_tokens(title):
+    stop = {
+        "the","and","for","with","from","that","this","has","have","into",
+        "new","says","said","space","force","forces","us","u","s","its",
+        "their","about","after","over","more","how","why","now",
+    }
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", str(title).lower())
+        if len(token) > 2 and token not in stop
+    }
+
+
+def _counterspace_near_duplicate(candidate, selected):
+    a = _counterspace_title_tokens(candidate.get("title") or "")
+    if not a:
+        return False
+
+    for item in selected:
+        b = _counterspace_title_tokens(item.get("title") or "")
+        if not b:
+            continue
+        overlap = len(a & b) / max(1, len(a | b))
+        if overlap >= 0.46:
+            return True
+
+        # Collapse the current cluster of stories all reporting the same
+        # public acknowledgement of US on-orbit space-control weapons.
+        ta = str(candidate.get("title") or "").lower()
+        tb = str(item.get("title") or "").lower()
+        cluster = [
+            "space control weapons",
+            "on-orbit space control",
+            "weapons on orbit",
+            "weapons into space",
+        ]
+        if any(x in ta for x in cluster) and any(x in tb for x in cluster):
+            return True
+
+    return False
+
+
+def get_counterspace_items(news, limit=10):
     """
-    Build a rotating Counterspace Capability Watch.
+    Build a rotating Counterspace Capability Watch with up to 10 distinct stories.
 
     Priority:
-      1) capability developments within 30 days
-      2) fill remaining slots from 90 days
-      3) fill remaining slots with latest significant developments
-      4) dated curated fallback if the feeds contain nothing suitable
+      1) last 30 days
+      2) then 90 days
+      3) then 180 days
+      4) then latest significant capability developments available in feeds
 
-    The intent is to keep several useful stories rotating without letting
-    routine interference/PNT stories dominate the panel.
+    Stories are near-deduplicated so multiple outlets covering the same
+    announcement do not occupy several carousel slots.
     """
     archive = _counterspace_archive_cached()
 
@@ -2662,28 +2754,50 @@ def get_counterspace_items(news, limit=4):
             key = re.sub(
                 r"\W+", "", str(item.get("title") or "").lower()
             )[:150]
-            if key and key not in chosen_keys:
+            if (
+                key
+                and key not in chosen_keys
+                and not _counterspace_near_duplicate(item, chosen)
+            ):
                 chosen.append(dict(item))
                 chosen_keys.add(key)
             if len(chosen) >= limit:
                 break
 
-    within_30 = _select_counterspace(merged, days=30, limit=max(limit * 2, 8))
-    add_from(within_30)
-
+    add_from(
+        _select_counterspace(
+            merged, days=30, limit=max(limit * 3, 30)
+        )
+    )
     window = "30D"
 
     if len(chosen) < limit:
-        within_90 = _select_counterspace(merged, days=90, limit=max(limit * 3, 12))
         before = len(chosen)
-        add_from(within_90)
+        add_from(
+            _select_counterspace(
+                merged, days=90, limit=max(limit * 4, 40)
+            )
+        )
         if len(chosen) > before:
             window = "30–90D"
 
     if len(chosen) < limit:
-        latest = _select_counterspace(merged, days=None, limit=max(limit * 4, 16))
         before = len(chosen)
-        add_from(latest)
+        add_from(
+            _select_counterspace(
+                merged, days=180, limit=max(limit * 5, 50)
+            )
+        )
+        if len(chosen) > before:
+            window = "30–180D"
+
+    if len(chosen) < limit:
+        before = len(chosen)
+        add_from(
+            _select_counterspace(
+                merged, days=None, limit=max(limit * 6, 60)
+            )
+        )
         if len(chosen) > before:
             window = "LATEST"
 
@@ -2691,8 +2805,8 @@ def get_counterspace_items(news, limit=4):
         chosen = [dict(CURATED_COUNTERSPACE_FALLBACK)]
         window = "LATEST KNOWN"
 
-    # Try to obtain story-specific OG images for slides that do not already
-    # have an RSS image. Requests run in parallel and fail soft.
+    # Try story-specific OG images in parallel. This is best-effort and
+    # cached; failures fall back to RSS image or the internal visual.
     missing = [
         (idx, item.get("link") or "")
         for idx, item in enumerate(chosen[:limit])
@@ -2700,7 +2814,7 @@ def get_counterspace_items(news, limit=4):
     ]
 
     if missing:
-        with ThreadPoolExecutor(max_workers=min(4, len(missing))) as pool:
+        with ThreadPoolExecutor(max_workers=min(5, len(missing))) as pool:
             futures = {
                 pool.submit(article_og_image, link): idx
                 for idx, link in missing
@@ -2779,8 +2893,32 @@ def counterspace_fallback_visual(event_type, title):
     )
 
 
+def _counterspace_teaser(item, max_chars=150):
+    raw = re.sub(
+        r"<[^>]+>", " ", str(item.get("summary") or "")
+    )
+    clean = re.sub(r"\s+", " ", html.unescape(raw)).strip()
+
+    # Avoid simply repeating the headline as the teaser.
+    title = re.sub(
+        r"\s+", " ", str(item.get("title") or "")
+    ).strip()
+    if clean.lower().startswith(title.lower()):
+        clean = clean[len(title):].lstrip(" .:-–—")
+
+    if not clean:
+        return ""
+
+    # Prefer the first sentence where possible.
+    first = re.split(r"(?<=[.!?])\s+", clean)[0]
+    teaser = first if len(first) >= 45 else clean
+    if len(teaser) > max_chars:
+        teaser = teaser[: max_chars - 1].rstrip() + "…"
+    return teaser
+
+
 def render_counterspace_watch(news):
-    items, window = get_counterspace_items(news, limit=4)
+    items, window = get_counterspace_items(news, limit=10)
 
     raw_html(
         '<div class="counter-head">'
@@ -2810,7 +2948,10 @@ def render_counterspace_watch(news):
     slides = []
     delays = []
     seconds_per_story = 10
-    total_duration = max(seconds_per_story, len(items) * seconds_per_story)
+    total_duration = max(
+        seconds_per_story,
+        len(items) * seconds_per_story,
+    )
 
     for i, item in enumerate(items):
         title = esc(item.get("title") or "")
@@ -2818,6 +2959,7 @@ def render_counterspace_watch(news):
         event_type = esc(counterspace_type(item))
         image = item.get("image") or ""
         link = esc(item.get("link") or "")
+        teaser = esc(_counterspace_teaser(item))
 
         date = item.get("date")
         when = (
@@ -2830,7 +2972,6 @@ def render_counterspace_watch(news):
                 f'<img class="cs-img" src="{esc(image)}" alt="{title}">'
             )
         else:
-            # Reliable internal graphic: no image API, no external dependency.
             media = (
                 '<div class="cs-fallback">'
                 '<div class="cs-orbit cs-o1"></div>'
@@ -2839,6 +2980,11 @@ def render_counterspace_watch(news):
                 '</div>'
             )
 
+        teaser_html = (
+            f'<div class="cs-teaser">{teaser}</div>'
+            if teaser else ""
+        )
+
         slide_inner = (
             f'{media}'
             f'<div class="cs-shade"></div>'
@@ -2846,6 +2992,7 @@ def render_counterspace_watch(news):
             f'<div class="cs-counter">{i + 1} / {len(items)}</div>'
             f'<div class="cs-caption">'
             f'<div class="cs-title">{title}</div>'
+            f'{teaser_html}'
             f'<div class="cs-source">{source} · {esc(when)}</div>'
             f'</div>'
         )
@@ -2853,7 +3000,8 @@ def render_counterspace_watch(news):
         if link:
             slide_inner = (
                 f'<a href="{link}" target="_blank" '
-                f'style="color:inherit;text-decoration:none">{slide_inner}</a>'
+                f'style="color:inherit;text-decoration:none">'
+                f'{slide_inner}</a>'
             )
 
         slides.append(
@@ -2868,16 +3016,17 @@ def render_counterspace_watch(news):
             '.cs-slide{opacity:1 !important;animation:none !important;}'
         )
     else:
-        # Each slide is visible for almost its entire 10-second slot.
         visible_pct = max(
-            12,
-            int(((seconds_per_story - 0.8) / total_duration) * 100),
+            8,
+            int(
+                ((seconds_per_story - 0.8) / total_duration) * 100
+            ),
         )
-        fade_out_pct = min(visible_pct + 2, 98)
+        fade_out_pct = min(visible_pct + 1, 98)
         animation_rule = (
             '@keyframes csfade{'
             '0%{opacity:0}'
-            '1.5%{opacity:1}'
+            '1%{opacity:1}'
             f'{visible_pct}%{{opacity:1}}'
             f'{fade_out_pct}%{{opacity:0}}'
             '100%{opacity:0}'
@@ -2895,7 +3044,7 @@ def render_counterspace_watch(news):
           font-family:Inter,"Segoe UI",Arial,sans-serif;
         }}
         .cs-frame{{
-          height:228px;
+          height:244px;
           position:relative;
           overflow:hidden;
           border:1px solid #D8C9C5;
@@ -2927,7 +3076,11 @@ def render_counterspace_watch(news):
           position:absolute;
           inset:0;
           background:
-            radial-gradient(circle at 74% 26%,rgba(148,87,72,.18),transparent 24%),
+            radial-gradient(
+              circle at 74% 26%,
+              rgba(148,87,72,.18),
+              transparent 24%
+            ),
             linear-gradient(135deg,#DCE5E5,#F4EFED);
         }}
         .cs-orbit{{
@@ -2936,65 +3089,80 @@ def render_counterspace_watch(news):
           border-radius:50%;
         }}
         .cs-o1{{
-          width:210px;height:210px;right:-55px;top:-84px;
+          width:220px;height:220px;right:-55px;top:-84px;
         }}
         .cs-o2{{
-          width:128px;height:128px;right:-12px;top:-42px;
+          width:134px;height:134px;right:-12px;top:-42px;
         }}
         .cs-symbol{{
           position:absolute;
           right:31px;
           top:35px;
           color:#8B5549;
-          font-size:37px;
+          font-size:40px;
         }}
         .cs-shade{{
           position:absolute;
           inset:0;
           background:
-            linear-gradient(180deg,rgba(8,18,23,.03) 32%,rgba(12,24,29,.88) 100%);
+            linear-gradient(
+              180deg,
+              rgba(8,18,23,.02) 24%,
+              rgba(11,23,28,.93) 100%
+            );
         }}
         .cs-badge{{
           position:absolute;
-          top:8px;
-          left:9px;
-          padding:4px 7px;
+          top:9px;
+          left:10px;
+          padding:4px 8px;
           border-radius:999px;
           background:#8B5549;
           color:#FFF8F5;
-          font-size:8px;
-          font-weight:820;
+          font-size:9px;
+          font-weight:840;
           letter-spacing:.06em;
         }}
         .cs-counter{{
           position:absolute;
-          top:9px;
+          top:10px;
           right:10px;
-          padding:3px 6px;
+          padding:4px 7px;
           border-radius:999px;
-          background:rgba(21,38,44,.66);
-          color:#E5EBEB;
-          font-size:7px;
-          font-weight:750;
+          background:rgba(21,38,44,.72);
+          color:#F0F4F4;
+          font-size:8px;
+          font-weight:780;
         }}
         .cs-caption{{
           position:absolute;
-          left:11px;
-          right:11px;
-          bottom:10px;
+          left:12px;
+          right:12px;
+          bottom:11px;
           color:#FFFFFF;
         }}
         .cs-title{{
-          font-size:12px;
-          font-weight:790;
-          line-height:1.2;
-          max-height:31px;
+          font-size:15px;
+          font-weight:820;
+          line-height:1.16;
+          max-height:53px;
           overflow:hidden;
+          text-shadow:0 1px 2px rgba(0,0,0,.45);
+        }}
+        .cs-teaser{{
+          color:#E5ECEC;
+          font-size:10px;
+          line-height:1.22;
+          margin-top:5px;
+          max-height:27px;
+          overflow:hidden;
+          text-shadow:0 1px 2px rgba(0,0,0,.38);
         }}
         .cs-source{{
-          color:#D5DEDF;
-          font-size:8px;
-          margin-top:4px;
+          color:#C7D4D7;
+          font-size:9px;
+          font-weight:650;
+          margin-top:5px;
         }}
         {" ".join(delays)}
         {animation_rule}
@@ -3006,7 +3174,7 @@ def render_counterspace_watch(news):
     </html>
     """
 
-    components.html(html_blob, height=230, scrolling=False)
+    components.html(html_blob, height=246, scrolling=False)
 
 
 
@@ -3146,8 +3314,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = ROTATING CAPABILITY WATCH · UP TO 4 STORIES · OPEN SOURCE</span>'
-        '<span>v0.8.8 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = ROTATING CAPABILITY WATCH · UP TO 10 STORIES · OPEN SOURCE</span>'
+        '<span>v0.8.9 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
