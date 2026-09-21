@@ -1,4 +1,5 @@
 import html
+import json
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -13,10 +14,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import streamlit as st
 import streamlit.components.v1 as components
-import plotly.graph_objects as go
 
 # ============================================================
-# SPACE UPDATE v0.8 · NORDIC CONTRAST · GLOBAL ACTIVITY MAP
+# SPACE UPDATE v0.8.1 · NORDIC CONTRAST · GLOBAL ACTIVITY MAP
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -1649,155 +1649,217 @@ def news_geo_tags(item):
 
 def activity_map(recent, news):
     """
-    Countries are shaded when they have important news and/or launch activity.
-    Launch sites are plotted as actor-coloured solid dots.
-    Important-news countries get an open ring at the country centroid.
-    """
-    activity = defaultdict(lambda: {"launches": 0, "news": 0, "names": []})
+    Browser-side world map using Leaflet.
+    No extra Python package is required.
 
-    launch_points = defaultdict(list)
+    Visual logic:
+    - pale blue country = important space news
+    - sand country = launch activity
+    - sage country = both launch + important news
+    - solid dot = launch site
+    - open ring = important-news country
+    """
+    activity = defaultdict(lambda: {"launches": 0, "news": 0})
+    launch_points = []
+    news_points = {}
+
     for launch in recent:
         iso3 = launch_country_iso3(launch)
         actor = major_actor(launch)
         if iso3:
             activity[iso3]["launches"] += 1
-            activity[iso3]["names"].append(launch.get("name") or "")
 
         lat, lon = launch_site_coords(launch)
         if lat is not None and lon is not None:
-            launch_points[actor].append({
+            launch_points.append({
                 "lat": lat,
                 "lon": lon,
+                "actor": actor,
+                "colour": ACTOR_COLOURS.get(actor, "#B58B3E"),
                 "spaceport": launch_spaceport(launch),
                 "name": launch.get("name") or "",
             })
 
-    news_points = {}
     for item in news[:10]:
         for hit in news_geo_tags(item):
             activity[hit["iso3"]]["news"] += 1
-            activity[hit["iso3"]]["names"].append(hit["headline"])
             news_points[hit["iso3"]] = hit
 
-    locations = []
-    z = []
-    hover = []
-    for iso3, data in activity.items():
-        if data["launches"] and data["news"]:
-            state = 3
-            label = "Launch + important news"
-        elif data["launches"]:
-            state = 2
-            label = "Launch activity"
+    activity_payload = {}
+    for iso3, values in activity.items():
+        if values["launches"] and values["news"]:
+            state = "both"
+        elif values["launches"]:
+            state = "launch"
         else:
-            state = 1
-            label = "Important news"
+            state = "news"
 
-        locations.append(iso3)
-        z.append(state)
-        hover.append(
-            f"{iso3}<br>{label}<br>"
-            f"{data['launches']} launches · {data['news']} news items"
-        )
+        activity_payload[iso3] = {
+            "state": state,
+            "launches": values["launches"],
+            "news": values["news"],
+        }
 
-    fig = go.Figure()
+    html_blob = f"""
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""
+      />
+      <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        crossorigin="">
+      </script>
+      <style>
+        html, body {{
+          margin:0;
+          padding:0;
+          background:#F7FAFA;
+          font-family:Inter,"Segoe UI",Arial,sans-serif;
+        }}
+        #map {{
+          height:286px;
+          width:100%;
+          background:#DDE8EB;
+          border:1px solid #CCD8DC;
+          border-radius:9px;
+          overflow:hidden;
+          box-sizing:border-box;
+        }}
+        .leaflet-control-attribution {{
+          font-size:7px !important;
+          opacity:.58;
+        }}
+        .leaflet-control-zoom {{
+          display:none;
+        }}
+        .launch-dot {{
+          border-radius:50%;
+          border:2px solid #fff;
+          box-shadow:0 0 0 1px rgba(32,54,62,.25);
+        }}
+        .news-ring {{
+          border-radius:50%;
+          background:transparent;
+          border:2px solid #426B79;
+          box-sizing:border-box;
+        }}
+        .leaflet-tooltip {{
+          background:#17313A;
+          color:#F4F7F6;
+          border:0;
+          border-radius:5px;
+          box-shadow:none;
+          font-size:9px;
+          padding:5px 7px;
+        }}
+        .leaflet-tooltip:before {{
+          display:none;
+        }}
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        const activity = {json.dumps(activity_payload, ensure_ascii=False)};
+        const launchPoints = {json.dumps(launch_points, ensure_ascii=False)};
+        const newsPoints = {json.dumps(list(news_points.values()), ensure_ascii=False)};
 
-    if locations:
-        fig.add_trace(
-            go.Choropleth(
-                locations=locations,
-                z=z,
-                zmin=1,
-                zmax=3,
-                text=hover,
-                hoverinfo="text",
-                showscale=False,
-                colorscale=[
-                    [0.00, "#BFD6DE"], [0.32, "#BFD6DE"],
-                    [0.33, "#E4C582"], [0.65, "#E4C582"],
-                    [0.66, "#83AD9B"], [1.00, "#83AD9B"],
-                ],
-                marker_line_color="#AEBCC1",
-                marker_line_width=0.6,
-            )
-        )
+        const map = L.map('map', {{
+          zoomControl:false,
+          attributionControl:true,
+          worldCopyJump:false,
+          minZoom:1,
+          maxZoom:4,
+          dragging:false,
+          scrollWheelZoom:false,
+          doubleClickZoom:false,
+          boxZoom:false,
+          keyboard:false,
+          tap:false
+        }}).setView([22, 8], 1.45);
 
-    # Launch sites, grouped by major actor for consistent colours.
-    for actor, points in launch_points.items():
-        if not points:
-            continue
-        fig.add_trace(
-            go.Scattergeo(
-                lat=[p["lat"] for p in points],
-                lon=[p["lon"] for p in points],
-                text=[
-                    f'{p["spaceport"]}<br>{p["name"]}'
-                    for p in points
-                ],
-                hoverinfo="text",
-                mode="markers",
-                marker=dict(
-                    size=8,
-                    color=ACTOR_COLOURS.get(actor, "#B58B3E"),
-                    line=dict(width=1.3, color="#FFFFFF"),
-                ),
-                showlegend=False,
-            )
-        )
+        L.tileLayer(
+          'https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png',
+          {{
+            attribution:'© OpenStreetMap © CARTO',
+            subdomains:'abcd',
+            maxZoom:5
+          }}
+        ).addTo(map);
 
-    # Important-news rings.
-    if news_points:
-        points = list(news_points.values())
-        fig.add_trace(
-            go.Scattergeo(
-                lat=[p["lat"] for p in points],
-                lon=[p["lon"] for p in points],
-                text=[
-                    f'{p["name"]}<br>{p["source"]}: {p["headline"]}'
-                    for p in points
-                ],
-                hoverinfo="text",
-                mode="markers",
-                marker=dict(
-                    size=15,
-                    color="rgba(0,0,0,0)",
-                    line=dict(width=2, color="#426B79"),
-                ),
-                showlegend=False,
-            )
-        )
+        const colours = {{
+          news:'#BFD6DE',
+          launch:'#E4C582',
+          both:'#83AD9B'
+        }};
 
-    fig.update_geos(
-        projection_type="natural earth",
-        showframe=False,
-        showcoastlines=True,
-        coastlinecolor="#A8B8BE",
-        coastlinewidth=0.6,
-        showcountries=True,
-        countrycolor="#B9C6CA",
-        countrywidth=0.6,
-        showland=True,
-        landcolor="#F8FAFA",
-        showocean=True,
-        oceancolor="#DDE8EB",
-        showlakes=False,
-        bgcolor="rgba(0,0,0,0)",
-    )
-    fig.update_layout(
-        height=286,
-        margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, Segoe UI, Arial", color="#30464F"),
-        uirevision="space-map",
-    )
+        fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json')
+          .then(r => r.json())
+          .then(geo => {{
+            L.geoJSON(geo, {{
+              style: feature => {{
+                const iso3 = feature.id || '';
+                const item = activity[iso3];
+                return {{
+                  fillColor: item ? colours[item.state] : '#F7FAFA',
+                  fillOpacity: item ? 0.78 : 0.18,
+                  color:'#AEBEC4',
+                  weight:0.45
+                }};
+              }},
+              onEachFeature: (feature, layer) => {{
+                const iso3 = feature.id || '';
+                const item = activity[iso3];
+                if (item) {{
+                  const name = feature.properties && feature.properties.name
+                    ? feature.properties.name
+                    : iso3;
+                  layer.bindTooltip(
+                    `<b>${{name}}</b><br>${{item.launches}} launches · ${{item.news}} news`,
+                    {{sticky:false}}
+                  );
+                }}
+              }}
+            }}).addTo(map);
+          }})
+          .catch(() => {{
+            // The map still remains useful with launch/news markers if the
+            // country-outline CDN is temporarily unavailable.
+          }});
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        config={"displayModeBar": False, "staticPlot": True},
-        key="global_activity_map",
-    )
+        launchPoints.forEach(p => {{
+          const icon = L.divIcon({{
+            className:'',
+            html:`<div class="launch-dot" style="width:10px;height:10px;background:${{p.colour}}"></div>`,
+            iconSize:[14,14],
+            iconAnchor:[7,7]
+          }});
+          L.marker([p.lat,p.lon], {{icon}})
+            .bindTooltip(`<b>${{p.spaceport}}</b><br>${{p.name}}`)
+            .addTo(map);
+        }});
+
+        newsPoints.forEach(p => {{
+          const icon = L.divIcon({{
+            className:'',
+            html:'<div class="news-ring" style="width:17px;height:17px"></div>',
+            iconSize:[17,17],
+            iconAnchor:[8.5,8.5]
+          }});
+          L.marker([p.lat,p.lon], {{icon}})
+            .bindTooltip(`<b>${{p.name}}</b><br>${{p.source}}: ${{p.headline}}`)
+            .addTo(map);
+        }});
+      </script>
+    </body>
+    </html>
+    """
+
+    components.html(html_blob, height=288, scrolling=False)
 
     raw_html(
         '<div class="map-legend">'
@@ -1807,7 +1869,6 @@ def activity_map(recent, news):
         '<span>● launch site</span>'
         '</div>'
     )
-
 
 def orbit_summary(recent):
     counts = defaultdict(int)
@@ -2223,7 +2284,7 @@ def render_dashboard():
     raw_html(
         '<div class="footerline">'
         '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL</span>'
-        '<span>v0.8 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>v0.8.1 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
