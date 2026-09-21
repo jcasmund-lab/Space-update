@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.9.1 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.2 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -59,7 +59,7 @@ NEWS_FEEDS = [
     ("EUSPA", "https://www.euspa.europa.eu/pressroom/press-releases/rss.xml", 3),
     ("JPL", "https://www.jpl.nasa.gov/feeds/news/", 4),
 ]
-COUNTERSPACE_FEEDS = [
+MILITARY_SPACE_FEEDS = [
     # Space / defence acquisition and capability sources.
     ("SpaceNews", "https://spacenews.com/feed/", 0),
     ("DefenseScoop", "https://defensescoop.com/feed/", 0),
@@ -69,29 +69,33 @@ COUNTERSPACE_FEEDS = [
 ]
 
 # Query-based RSS fallback. No API key is required.
-# This makes Counterspace Capability Watch resilient when a publisher's
+# This makes Military Space Watch resilient when a publisher's
 # own RSS feed is shallow, blocked, or contains too few relevant items.
-COUNTERSPACE_QUERY_FEEDS = [
+MILITARY_SPACE_QUERY_FEEDS = [
+    ("Search: military space",
+     "https://news.google.com/rss/search?q=%22military+space%22+OR+%22national+security+space%22&hl=en-US&gl=US&ceid=US:en", 1),
     ("Search: counterspace",
-     "https://news.google.com/rss/search?q=%22counterspace%22+OR+%22space+control%22+weapon+capability+deployment+procurement+strategy&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: ASAT",
-     "https://news.google.com/rss/search?q=%22anti-satellite%22+OR+ASAT+weapon+capability+deployment+procurement+test&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: co-orbital",
-     "https://news.google.com/rss/search?q=%22co-orbital%22+OR+%22proximity+operations%22+military+satellite+capability&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: space EW",
-     "https://news.google.com/rss/search?q=%22space+electronic+warfare%22+OR+%22satellite+jamming%22+OR+%22counter+communications%22+military+capability&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: space targeting",
-     "https://news.google.com/rss/search?q=%22space+domain+awareness%22+targeting+military+contract+capability&hl=en-US&gl=US&ceid=US:en", 2),
-    ("Search: orbital weapons",
-     "https://news.google.com/rss/search?q=%22on-orbit+weapon%22+OR+%22orbital+weapon%22+OR+%22weapons+in+orbit%22&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: US counterspace",
-     "https://news.google.com/rss/search?q=%22Space+Force%22+%28counterspace+OR+%22space+control%22+OR+ASAT+OR+%22electronic+warfare%22%29&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: China counterspace",
-     "https://news.google.com/rss/search?q=China+%28counterspace+OR+ASAT+OR+%22co-orbital%22+OR+%22space+weapon%22%29&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: Russia counterspace",
-     "https://news.google.com/rss/search?q=Russia+%28counterspace+OR+ASAT+OR+%22space+weapon%22+OR+%22satellite+jamming%22%29&hl=en-US&gl=US&ceid=US:en", 1),
-    ("Search: Europe counterspace",
-     "https://news.google.com/rss/search?q=Europe+%28counterspace+OR+%22space+defence%22+OR+%22space+defense%22+OR+%22space+control%22%29&hl=en-US&gl=US&ceid=US:en", 2),
+     "https://news.google.com/rss/search?q=counterspace+OR+%22space+control%22+OR+ASAT+OR+%22space+weapon%22&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: SDA",
+     "https://news.google.com/rss/search?q=%22space+domain+awareness%22+OR+%22space+situational+awareness%22+military&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: military SATCOM",
+     "https://news.google.com/rss/search?q=military+SATCOM+OR+%22protected+satcom%22+OR+%22secure+satellite+communications%22&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: military PNT",
+     "https://news.google.com/rss/search?q=military+PNT+OR+%22resilient+PNT%22+OR+GNSS+military+spoofing+jamming&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: military ISR space",
+     "https://news.google.com/rss/search?q=%22military+satellite%22+ISR+OR+reconnaissance+OR+surveillance&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: responsive launch",
+     "https://news.google.com/rss/search?q=%22responsive+space%22+OR+%22tactically+responsive+space%22+OR+military+launch+satellite&hl=en-US&gl=US&ceid=US:en", 2),
+    ("Search: military space acquisition",
+     "https://news.google.com/rss/search?q=%22Space+Force%22+satellite+contract+OR+procurement+OR+acquisition&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: China military space",
+     "https://news.google.com/rss/search?q=China+military+space+OR+PLA+satellite+OR+ASAT+OR+%22space+domain%22&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: Russia military space",
+     "https://news.google.com/rss/search?q=Russia+military+space+OR+satellite+weapon+OR+ASAT+OR+%22space+forces%22&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: Europe military space",
+     "https://news.google.com/rss/search?q=Europe+military+space+OR+defence+satellite+OR+%22space+defence%22+OR+%22space+defense%22&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: NATO space",
+     "https://news.google.com/rss/search?q=NATO+space+military+satellite+OR+%22space+domain%22&hl=en-US&gl=US&ceid=US:en", 1),
 ]
 
 
@@ -2152,7 +2156,7 @@ def render_europe_panel_v08(recent, upcoming, ytd):
     - what is being built / what comes next
 
     Detailed launcher/company status was deliberately removed from the
-    main wall display to free space for Counterspace Capability Watch.
+    main wall display to free space for Military Space Watch.
     """
     actor_rows = build_europe_actor_stats(recent, upcoming)
 
@@ -2379,177 +2383,135 @@ def featured_launch_slideshow_v08(recent):
 # 07B · COUNTERSPACE WATCH
 # ============================================================
 
-COUNTERSPACE_CORE_TERMS = {
-    # Direct counterspace / space-control language
+MILITARY_SPACE_TERMS = {
+    "military space": 12,
+    "national security space": 12,
+    "space force": 9,
+    "space command": 8,
+    "space operations": 7,
+    "space warfare": 10,
+    "space combat power": 10,
+
     "counterspace": 12,
     "counter-space": 12,
-    "space control": 12,
-    "space-control": 12,
-    "space weapon": 12,
-    "space weapons": 12,
-    "space fires": 11,
-    "space combat power": 10,
-    "space superiority": 9,
-    "orbital warfare": 10,
-    "offensive space": 9,
-    "defensive space": 7,
-
-    # On-orbit / kinetic / non-kinetic weapons
-    "weapon in orbit": 12,
-    "weapons in orbit": 12,
-    "on-orbit weapon": 12,
-    "on-orbit weapons": 12,
-    "orbital weapon": 12,
-    "orbital weapons": 12,
+    "space control": 11,
+    "space-control": 11,
     "anti-satellite": 12,
     "antisatellite": 12,
     "asat": 12,
-    "orbital strike": 11,
-    "space link interdiction": 11,
-
-    # RPO / manoeuvre / targeting enablers
+    "space weapon": 11,
+    "orbital weapon": 11,
+    "on-orbit weapon": 11,
     "co-orbital": 9,
     "coorbital": 9,
     "proximity operations": 8,
-    "proximity operation": 8,
     "rendezvous and proximity": 8,
-    "space maneuver": 7,
-    "space manoeuvre": 7,
-    "maneuver warfare": 7,
-    "manoeuvre warfare": 7,
-    "space domain awareness": 6,
-    "space targeting": 8,
-    "target threats on orbit": 8,
-    "targeting in the space domain": 8,
 
-    # Electromagnetic / directed-energy counterspace
+    "space domain awareness": 10,
+    "space situational awareness": 9,
+    "space surveillance": 8,
+    "space tracking": 8,
+    "orbital tracking": 7,
+    "space targeting": 9,
+
+    "military satcom": 10,
+    "protected satcom": 10,
+    "secure satellite communications": 9,
+    "milsatcom": 10,
+
+    "resilient pnt": 9,
+    "military pnt": 10,
+    "gnss jamming": 8,
+    "gps jamming": 8,
+    "gnss spoofing": 8,
+    "gps spoofing": 8,
     "space electronic warfare": 10,
-    "space electromagnetic warfare": 10,
     "satellite jamming": 9,
-    "satcom jamming": 9,
-    "counter communications system": 11,
     "counter communications": 9,
-    "meadowlands": 11,
-    "remote modular terminal": 10,
-    "directed energy": 9,
-    "laser dazzling": 9,
+
+    "reconnaissance satellite": 10,
+    "military satellite": 8,
+    "surveillance satellite": 9,
+    "synthetic aperture radar": 5,
+    "sar satellite": 6,
+
+    "responsive space": 9,
+    "tactically responsive space": 10,
+    "military launch": 8,
+    "launch on demand": 8,
+    "proliferated leo": 7,
+    "resilient space": 7,
 }
 
-
-CAPABILITY_ACTION_TERMS = {
-    "deploy": 7,
-    "deployed": 8,
-    "deployment": 7,
-    "field": 6,
-    "fielded": 8,
-    "fielding": 7,
-    "procure": 7,
-    "procurement": 8,
-    "acquisition": 8,
-    "acquire": 7,
+MILITARY_SPACE_ACTION_TERMS = {
+    "deploy": 6,
+    "deployed": 7,
+    "deployment": 6,
+    "fielded": 7,
+    "fielding": 6,
+    "procure": 6,
+    "procurement": 7,
+    "acquisition": 7,
+    "acquire": 6,
     "contract": 6,
     "award": 6,
     "selected": 4,
-    "strategy": 7,
-    "strategic": 4,
-    "doctrine": 7,
-    "framework": 6,
+    "strategy": 6,
+    "doctrine": 6,
+    "framework": 5,
     "policy": 4,
     "budget": 5,
     "funding": 5,
     "investment": 5,
     "develop": 4,
     "developing": 4,
-    "prototype": 6,
-    "prototyping": 6,
-    "production": 6,
+    "prototype": 5,
+    "production": 5,
     "delivery": 5,
-    "delivered": 6,
-    "accept": 5,
-    "accepted": 6,
-    "approve": 5,
-    "approved": 6,
-    "demonstration": 5,
-    "demonstrate": 5,
+    "delivered": 5,
     "test": 4,
-    "exercise": 5,
+    "exercise": 4,
     "operational": 5,
     "capability": 5,
     "system": 3,
     "unit": 3,
     "squadron": 4,
-    "targeting": 4,
-    "track": 3,
-    "tracking": 3,
-    "software": 3,
+    "launch": 4,
+    "mission": 3,
 }
 
-
-COUNTERSPACE_DOWNRANK = {
-    # Useful resilience/PNT stories, but not the capability-watch product
-    # the user wants in this box.
-    "osnma": -20,
-    "authentication service": -15,
-    "civil navigation": -10,
-    "resilience service": -8,
-    "interference monitoring": -6,
+MILITARY_SPACE_DOWNRANK = {
+    "astronaut": -8,
+    "telescope": -8,
+    "planetary science": -8,
+    "moon sample": -8,
+    "mars rover": -8,
+    "space tourism": -10,
+    "pokemon": -20,
 }
 
-
-def counterspace_score(item):
-    """
-    Score developments in counterspace CAPABILITY, not routine interference events.
-
-    A strong result normally needs BOTH:
-      - a counterspace / space-control concept; and
-      - a capability action: deployment, procurement, strategy, fielding,
-        testing, funding, acquisition, organisation, etc.
-    """
+def military_space_score(item):
+    """Broad military-space relevance score for the rotating watch."""
     title = str(item.get("title") or "")
     summary = re.sub(r"<[^>]+>", " ", str(item.get("summary") or ""))
     low = f"{title} {summary}".lower()
 
-    core_score = 0
-    for term, points in COUNTERSPACE_CORE_TERMS.items():
+    subject_score = 0
+    for term, points in MILITARY_SPACE_TERMS.items():
         if term in low:
-            core_score += points
+            subject_score += points
 
     action_score = 0
-    for term, points in CAPABILITY_ACTION_TERMS.items():
+    for term, points in MILITARY_SPACE_ACTION_TERMS.items():
         if term in low:
             action_score += points
 
-    # Strong explicit phrases such as "weapons in orbit" are inherently
-    # capability developments even if the headline contains no procurement verb.
-    explicit_capability = any(
-        phrase in low
-        for phrase in [
-            "space control weapons",
-            "space-control weapons",
-            "weapons in orbit",
-            "weapon in orbit",
-            "on-orbit weapons",
-            "on-orbit weapon",
-            "orbital weapons",
-            "orbital weapon",
-            "anti-satellite weapon",
-            "counterspace capability",
-            "counter-space capability",
-            "space control operations",
-            "space combat power",
-            "space fires",
-            "counter communications system",
-            "meadowlands",
-            "remote modular terminal",
-        ]
-    )
-
-    if not explicit_capability and (core_score == 0 or action_score == 0):
+    if subject_score < 7:
         return 0
 
-    score = core_score + action_score
+    score = subject_score + action_score
 
-    for term, penalty in COUNTERSPACE_DOWNRANK.items():
+    for term, penalty in MILITARY_SPACE_DOWNRANK.items():
         if term in low:
             score += penalty
 
@@ -2560,9 +2522,9 @@ def counterspace_score(item):
             - dt.astimezone(timezone.utc)
         ).total_seconds() / 3600
         if age_hours <= 24:
-            score += 3
+            score += 4
         elif age_hours <= 168:
-            score += 2
+            score += 3
         elif age_hours <= 720:
             score += 1
 
@@ -2592,7 +2554,7 @@ def article_og_image(url):
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def _counterspace_archive_cached():
+def _military_space_archive_cached():
     """
     Deeper scan of the same trusted global feeds.
 
@@ -2698,7 +2660,7 @@ def _counterspace_archive_cached():
         return out
 
     items = []
-    feed_specs = COUNTERSPACE_FEEDS + COUNTERSPACE_QUERY_FEEDS
+    feed_specs = MILITARY_SPACE_FEEDS + MILITARY_SPACE_QUERY_FEEDS
     with ThreadPoolExecutor(max_workers=min(10, len(feed_specs))) as pool:
         futures = [
             pool.submit(parse_feed, source, url, priority)
@@ -2735,7 +2697,7 @@ def _select_counterspace(pool, days=None, limit=2):
             if dt.astimezone(timezone.utc) < floor:
                 continue
 
-        score = counterspace_score(item)
+        score = military_space_score(item)
         if score < 7:
             continue
 
@@ -2906,12 +2868,12 @@ def _counterspace_near_duplicate(candidate, selected):
 
 def get_counterspace_items(news, limit=10):
     """
-    Return up to 10 DISTINCT counterspace capability developments.
+    Return up to 10 DISTINCT military-space developments.
 
     Ten is a maximum, not a quota. If only four genuinely different
     developments are available, the carousel shows 1/4 ... 4/4.
     """
-    archive = _counterspace_archive_cached()
+    archive = _military_space_archive_cached()
 
     merged = []
     seen_exact = set()
@@ -2925,6 +2887,7 @@ def get_counterspace_items(news, limit=10):
 
     chosen = []
     source_counts = defaultdict(int)
+    category_counts = defaultdict(int)
 
     def add_from(pool):
         for item in pool:
@@ -2935,11 +2898,16 @@ def get_counterspace_items(news, limit=10):
             if source_counts[source] >= 3:
                 continue
 
+            category = military_space_type(item)
+            if category_counts[category] >= 3:
+                continue
+
             if _counterspace_near_duplicate(item, chosen):
                 continue
 
             chosen.append(dict(item))
             source_counts[source] += 1
+            category_counts[category] += 1
 
     periods = [
         (30, "30D"),
@@ -2994,30 +2962,61 @@ def get_counterspace_items(news, limit=10):
     return chosen[:limit], window
 
 
-def counterspace_type(item):
-    text_blob = (
+def military_space_type(item):
+    blob = (
         f'{item.get("title","")} {item.get("summary","")}'
     ).lower()
 
-    if any(x in text_blob for x in ["deployed", "deployment", "fielded", "fielding", "on-orbit weapon", "weapons in orbit"]):
-        return "FIELDING / DEPLOYMENT"
+    if any(x in blob for x in [
+        "counterspace", "anti-satellite", "antisatellite", "asat",
+        "space control", "space weapon", "orbital weapon",
+        "co-orbital", "coorbital", "proximity operations",
+    ]):
+        return "COUNTERSPACE"
 
-    if any(x in text_blob for x in ["procurement", "acquisition", "contract", "award", "selected", "buy", "purchase"]):
-        return "ACQUISITION"
+    if any(x in blob for x in [
+        "space domain awareness", "space situational awareness",
+        "space surveillance", "space tracking", "orbital tracking",
+        "space targeting",
+    ]):
+        return "SDA / TARGETING"
 
-    if any(x in text_blob for x in ["strategy", "doctrine", "framework", "policy"]):
+    if any(x in blob for x in [
+        "military satcom", "milsatcom", "protected satcom",
+        "secure satellite communications",
+    ]):
+        return "SATCOM"
+
+    if any(x in blob for x in [
+        "pnt", "gnss", "gps", "jamming", "spoofing",
+        "electronic warfare", "counter communications",
+    ]):
+        return "PNT / EW"
+
+    if any(x in blob for x in [
+        "reconnaissance", "surveillance satellite",
+        "synthetic aperture radar", "sar satellite",
+    ]):
+        return "ISR / EO"
+
+    if any(x in blob for x in [
+        "responsive space", "responsive launch",
+        "military launch", "launch on demand",
+    ]):
+        return "ACCESS / LAUNCH"
+
+    if any(x in blob for x in [
+        "strategy", "doctrine", "framework", "policy",
+    ]):
         return "STRATEGY / DOCTRINE"
 
-    if any(x in text_blob for x in ["demonstration", "demonstrate", "test", "exercise"]):
-        return "TEST / DEMONSTRATION"
+    if any(x in blob for x in [
+        "procurement", "acquisition", "contract", "award",
+        "funding", "investment", "budget",
+    ]):
+        return "ACQUISITION"
 
-    if any(x in text_blob for x in ["budget", "funding", "investment"]):
-        return "INVESTMENT"
-
-    if any(x in text_blob for x in ["unit", "squadron", "organization", "organisation", "office"]):
-        return "ORGANISATION"
-
-    return "CAPABILITY DEVELOPMENT"
+    return "MILITARY SPACE"
 
 
 def counterspace_fallback_visual(event_type, title):
@@ -3085,7 +3084,7 @@ def render_counterspace_watch(news):
 
     raw_html(
         '<div class="counter-head">'
-        '<div class="counter-title">COUNTERSPACE CAPABILITY WATCH</div>'
+        '<div class="counter-title">MILITARY SPACE WATCH</div>'
         f'<div class="counter-period">OPEN SOURCE · {esc(window)}</div>'
         '</div>'
     )
@@ -3096,7 +3095,7 @@ def render_counterspace_watch(news):
             '<div class="counter-baseline-title">'
             'NO NEW CAPABILITY DEVELOPMENT IDENTIFIED'
             '</div>'
-            '<div class="counter-baseline-sub">Capability areas to watch</div>'
+            '<div class="counter-baseline-sub">Military space areas to watch</div>'
             '<div class="counter-baseline-grid">'
             '<div class="counter-baseline-chip">EW / JAMMING</div>'
             '<div class="counter-baseline-chip">GNSS SPOOFING</div>'
@@ -3119,7 +3118,7 @@ def render_counterspace_watch(news):
     for i, item in enumerate(items):
         title = esc(item.get("title") or "")
         source = esc(item.get("source") or "")
-        event_type = esc(counterspace_type(item))
+        event_type = esc(military_space_type(item))
         image = item.get("image") or ""
         link = esc(item.get("link") or "")
         teaser = esc(_counterspace_teaser(item))
@@ -3477,8 +3476,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = DISTINCT STORIES · UP TO 10 · NO DUPLICATE PADDING</span>'
-        '<span>v0.9.1 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · UP TO 10 DISTINCT STORIES</span>'
+        '<span>v0.9.2 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
