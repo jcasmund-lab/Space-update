@@ -17,7 +17,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.7.2 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.8.7.3 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -1102,7 +1102,7 @@ div[data-testid="stHorizontalBlock"] {gap:.58rem;}
 .actor-metrics {
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:8px;
+    gap:6px;
 }
 .actor-metric + .actor-metric {
     border-left:1px solid #D5DEE1;
@@ -2956,7 +2956,7 @@ def render_dashboard():
     raw_html(
         '<div class="footerline">'
         '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = CAPABILITY WATCH · ARTICLE IMAGE → INTERNAL GRAPHIC · OPEN SOURCE</span>'
-        '<span>v0.8.7.2 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>v0.8.7.3 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
