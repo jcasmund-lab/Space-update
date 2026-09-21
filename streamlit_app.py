@@ -1,5 +1,6 @@
 import html
 import re
+import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -14,7 +15,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.6.1 · NORDIC
+# SPACE UPDATE v0.6.2 · NORDIC · PERFORMANCE FIX
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -43,7 +44,7 @@ LL2_BASES = [
 ]
 CELESTRAK_GP = "https://celestrak.org/NORAD/elements/gp.php"
 CELESTRAK_SATCAT = "https://celestrak.org/satcat/records.php"
-HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6-nordic (Streamlit 16:9 wall display)"}
+HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6.2-nordic (Streamlit 16:9 wall display)"}
 
 NEWS_FEEDS = [
     ("EUSPA", "https://www.euspa.europa.eu/pressroom/press-releases/rss.xml", 0),
@@ -324,51 +325,91 @@ def get_ytd_launches():
 
 @st.cache_data(ttl=7200, show_spinner=False)
 def _celestrak_count_cached(query_type, value):
-    data = _request_json(
-        CELESTRAK_GP,
-        {query_type.upper(): value, "FORMAT": "JSON"},
-        timeout=10,
-    )
+    """Fast GP catalogue count; no retry cascade on a wall display."""
+    with requests.Session() as session:
+        r = session.get(
+            CELESTRAK_GP,
+            params={query_type.upper(): value, "FORMAT": "JSON"},
+            headers=HEADERS,
+            timeout=(1.5, 2.8),
+        )
+        r.raise_for_status()
+        data = r.json()
     if not isinstance(data, list):
         raise ValueError("Unexpected CelesTrak response")
     return len(data)
 
 
 def celestrak_count(query_type, value):
+    key = f"{query_type.upper()}::{value}"
+    memo = st.session_state.setdefault("_gp_runtime_memo", {})
+    now_ts = time.time()
+    hit = memo.get(key)
+    if hit and hit.get("until", 0) > now_ts:
+        return hit.get("value")
     try:
-        return _celestrak_count_cached(query_type, value)
+        value_out = _celestrak_count_cached(query_type, value)
+        memo[key] = {"value": value_out, "until": now_ts + 7200}
+        return value_out
     except Exception:
+        memo[key] = {"value": None, "until": now_ts + 300}
         return None
 
 
 @st.cache_data(ttl=21600, show_spinner=False)
 def _catalogued_objects_cached(launch_designator):
-    # SATCAT is the right source for newly catalogued objects associated with a launch.
-    data = _request_json(
-        CELESTRAK_SATCAT,
-        {"INTDES": launch_designator, "FORMAT": "JSON", "ONORBIT": 1},
-        timeout=10,
-    )
+    """Fast SATCAT lookup. Intentionally no retry loop: wall-display speed wins."""
+    with requests.Session() as session:
+        r = session.get(
+            CELESTRAK_SATCAT,
+            params={"INTDES": launch_designator, "FORMAT": "JSON", "ONORBIT": 1},
+            headers=HEADERS,
+            timeout=(1.5, 2.8),
+        )
+        r.raise_for_status()
+        data = r.json()
     if not isinstance(data, list):
         raise ValueError("Unexpected CelesTrak SATCAT response")
     return len(data)
 
 
 def catalogued_objects_for_launch(launch_designator):
+    """
+    One SATCAT attempt per designator per render/session window.
+    Successful values live in Streamlit's 6 h cache; temporary failures are
+    remembered for 5 minutes so the same dead endpoint cannot stall every panel.
+    """
     if not launch_designator:
         return None
+
+    memo = st.session_state.setdefault("_satcat_runtime_memo", {})
+    now_ts = time.time()
+    hit = memo.get(launch_designator)
+    if hit and hit.get("until", 0) > now_ts:
+        return hit.get("value")
+
     try:
-        return _catalogued_objects_cached(launch_designator)
+        value = _catalogued_objects_cached(launch_designator)
+        memo[launch_designator] = {"value": value, "until": now_ts + 21600}
+        return value
     except Exception:
+        memo[launch_designator] = {"value": None, "until": now_ts + 300}
         return None
 
 
 def prefetch_object_catalogue(launches):
-    """Warm the SATCAT cache in parallel without hammering CelesTrak."""
+    """
+    Warm only the object counts we actually need, in parallel.
+    With 6 workers and a ~3 s read timeout this stays bounded instead of
+    freezing the whole 16:9 display for tens of seconds.
+    """
     designators = sorted({x.get("launch_designator") for x in launches if x.get("launch_designator")})
     if not designators:
         return
-    with ThreadPoolExecutor(max_workers=3) as pool:
+
+    # Seven days is normally a small set; cap pathological feeds defensively.
+    designators = designators[:24]
+    with ThreadPoolExecutor(max_workers=6) as pool:
         futures = [pool.submit(catalogued_objects_for_launch, d) for d in designators]
         for future in as_completed(futures):
             try:
@@ -642,10 +683,25 @@ def europe_capability_stats(recent, upcoming, ytd):
     def planned_launches(needles):
         return sum(1 for launch in upcoming if matches(launch, needles))
 
-    # Current tracked totals from CelesTrak.
-    galileo_total = celestrak_count("GROUP", "GALILEO")
-    sentinel_total = celestrak_count("NAME", "SENTINEL")
-    oneweb_total = celestrak_count("GROUP", "ONEWEB")
+    # Current tracked totals from CelesTrak. Fetch the three independent
+    # catalogue counts in parallel so a slow endpoint costs ~3 s, not ~9 s.
+    catalogue_queries = {
+        "galileo": ("GROUP", "GALILEO"),
+        "sentinel": ("NAME", "SENTINEL"),
+        "oneweb": ("GROUP", "ONEWEB"),
+    }
+    catalogue_totals = {k: None for k in catalogue_queries}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        future_map = {pool.submit(celestrak_count, *q): k for k, q in catalogue_queries.items()}
+        for future in as_completed(future_map):
+            key = future_map[future]
+            try:
+                catalogue_totals[key] = future.result()
+            except Exception:
+                catalogue_totals[key] = None
+    galileo_total = catalogue_totals["galileo"]
+    sentinel_total = catalogue_totals["sentinel"]
+    oneweb_total = catalogue_totals["oneweb"]
 
     # European launch totals are launch events, not spacecraft.
     europe_launch_7d = sum(1 for x in recent if european_launch_actor(x))
@@ -1400,13 +1456,8 @@ def render_launch_card(launch):
 def render_dashboard():
     recent, recent_ok = get_recent_launches(7)
     upcoming, upcoming_ok = get_upcoming_launches(30)
-    ytd, ytd_ok = get_ytd_launches()
     news, news_ok = get_news()
     now = datetime.now(LOCAL_TZ)
-
-    # Warm SATCAT counts in a small parallel pool. Subsequent render calls hit cache.
-    if recent:
-        prefetch_object_catalogue(recent)
 
     # Primary live status is launch activity. Catalogue/YTD are secondary feeds.
     status = "LIVE" if recent_ok and upcoming_ok else "PARTIAL DATA"
@@ -1429,6 +1480,12 @@ def render_dashboard():
 
     # -------------------- Major actors --------------------
     section_header("NEW EVENTS BY MAJOR ACTOR", "AUTO · LAUNCHES + NEW ORBITAL OBJECTS · BIG = 7D · SMALL = 24H")
+
+    # The header + news ticker are already on screen before the slower SATCAT work.
+    # This is the only bounded catalogue warm-up in the render; later sections reuse it.
+    if recent:
+        prefetch_object_catalogue(recent)
+
     now_utc = datetime.now(timezone.utc)
     counts7 = defaultdict(int)
     counts24 = defaultdict(int)
@@ -1495,6 +1552,8 @@ def render_dashboard():
     with left:
         with st.container(border=True):
             st.markdown('<div class="accent-blue"></div><div class="panel-title">EUROPE · CAPABILITY PICTURE</div>', unsafe_allow_html=True)
+            # YTD is secondary data. Fetch it only now, after the actor/orbit/next-launch panels exist.
+            ytd, ytd_ok = get_ytd_launches()
             caps = europe_capability_stats(recent, upcoming, ytd if ytd_ok else None)
             c1, c2 = st.columns(2, gap="small")
             with c1:
@@ -1524,7 +1583,7 @@ def render_dashboard():
                 st.markdown('<div class="launch-card"><div class="launch-placeholder">🛰️</div></div>', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 wall display · auto retry · launch/news 15 min · catalogue cache 6 h</span></div>',
+        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 wall display · auto retry · launch/news 15 min · SATCAT fast-cache 5 min/6 h</span></div>',
         unsafe_allow_html=True,
     )
 
