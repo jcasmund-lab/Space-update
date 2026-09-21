@@ -15,7 +15,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.6.3 · NORDIC · SINGLE-SCREEN FIX
+# SPACE UPDATE v0.6.4 · NORDIC · 24-INCH READABLE
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -44,7 +44,7 @@ LL2_BASES = [
 ]
 CELESTRAK_GP = "https://celestrak.org/NORAD/elements/gp.php"
 CELESTRAK_SATCAT = "https://celestrak.org/satcat/records.php"
-HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6.3-nordic (Streamlit 16:9 wall display)"}
+HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6.4-nordic-readable (Streamlit 16:9 wall display)"}
 
 NEWS_FEEDS = [
     ("EUSPA", "https://www.euspa.europa.eu/pressroom/press-releases/rss.xml", 0),
@@ -756,7 +756,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {di
 [data-testid="stSidebar"] {display:none !important;}
 .block-container {
     max-width:100vw !important;
-    padding:0.42rem 0.70rem 0.30rem 0.70rem !important;
+    padding:0.48rem 0.82rem 0.34rem 0.82rem !important;
 }
 .stApp {
     color:#F3F6F8;
@@ -777,14 +777,14 @@ html, body, [class*="css"] {
     margin:0 0 .20rem 0;
 }
 .hero-title {
-    font-size:clamp(27px,1.85vw,37px);
+    font-size:clamp(32px,2.05vw,42px);
     font-weight:780;
     letter-spacing:.075em;
     line-height:1;
     color:#F5F7F8;
 }
 .hero-sub {
-    font-size:clamp(9px,.68vw,13px);
+    font-size:clamp(11px,.76vw,15px);
     color:#8FA2B1;
     letter-spacing:.10em;
     margin-top:.28rem;
@@ -792,14 +792,14 @@ html, body, [class*="css"] {
 .hero-time {
     text-align:right;
     color:#8397A6;
-    font-size:9px;
+    font-size:11px;
     letter-spacing:.08em;
 }
 .hero-time strong {
     display:block;
     color:#EDF2F5;
-    font-size:16px;
-    font-weight:680;
+    font-size:19px;
+    font-weight:700;
     margin-top:2px;
 }
 .live-dot {
@@ -821,13 +821,13 @@ html, body, [class*="css"] {
     margin:.31rem 0 .26rem;
 }
 .section-title {
-    font-size:10px;
+    font-size:12px;
     font-weight:760;
     color:#A6B6C2;
     letter-spacing:.12em;
 }
 .source-note {
-    font-size:8px;
+    font-size:9px;
     color:#52697B;
     letter-spacing:.09em;
 }
@@ -836,7 +836,7 @@ html, body, [class*="css"] {
    D. NEWS TICKER
    ========================================================== */
 .news-ticker {
-    height:24px;
+    height:30px;
     overflow:hidden;
     border:1px solid #1B2B39;
     border-radius:9px;
@@ -856,7 +856,7 @@ html, body, [class*="css"] {
     padding:0 10px;
     background:#152737;
     color:#9FC6DD;
-    font-size:8px;
+    font-size:9px;
     font-weight:800;
     letter-spacing:.12em;
     border-right:1px solid #263A49;
@@ -864,13 +864,13 @@ html, body, [class*="css"] {
 .news-track {
     display:flex;
     width:max-content;
-    height:24px;
+    height:30px;
     align-items:center;
     animation:news-scroll 88s linear infinite;
     padding-left:68px;
 }
 .news-set {display:flex; align-items:center; white-space:nowrap;}
-.news-item {font-size:9px; color:#C9D3DA; margin-right:26px;}
+.news-item {font-size:10px; color:#C9D3DA; margin-right:30px;}
 .news-source {color:#8FB9D0; font-weight:760; letter-spacing:.07em; margin-right:5px;}
 .news-dot {color:#3F5667; margin-right:9px;}
 @keyframes news-scroll {from{transform:translateX(0)} to{transform:translateX(-50%)}}
@@ -882,8 +882,8 @@ html, body, [class*="css"] {
    ========================================================== */
 .actor-card {
     border-radius:14px;
-    padding:8px 11px 7px;
-    min-height:96px;
+    padding:11px 14px 10px;
+    min-height:122px;
     background:#11212D;
     border:1px solid #304553;
     border-top:3px solid var(--accent);
@@ -896,24 +896,24 @@ html, body, [class*="css"] {
     align-items:center;
     justify-content:space-between;
     gap:8px;
-    margin-bottom:4px;
+    margin-bottom:7px;
 }
 .actor-name {
-    font-size:10px;
+    font-size:12px;
     font-weight:780;
     letter-spacing:.11em;
     color:var(--accent);
 }
 .actor-flag {
-    width:33px;
-    height:25px;
+    width:38px;
+    height:28px;
     border-radius:7px;
     display:flex;
     align-items:center;
     justify-content:center;
     background:#142431;
     border:1px solid #324957;
-    font-size:18px;
+    font-size:21px;
     line-height:1;
     overflow:hidden;
 }
@@ -929,39 +929,39 @@ html, body, [class*="css"] {
 .actor-metrics {
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:10px;
+    gap:14px;
 }
 .actor-metric + .actor-metric {
     border-left:1px solid #293B49;
-    padding-left:10px;
+    padding-left:14px;
 }
 .actor-metric-label {
-    font-size:7px;
+    font-size:9px;
     color:#778D9E;
     font-weight:760;
     letter-spacing:.09em;
 }
 .actor-big {
-    font-size:clamp(25px,1.65vw,34px);
+    font-size:clamp(34px,2.15vw,44px);
     font-weight:760;
     line-height:.95;
     margin-top:3px;
     color:#F4F7F9;
 }
 .actor-seven-label {
-    font-size:7px;
+    font-size:9px;
     color:#657B8C;
     letter-spacing:.07em;
     margin-top:2px;
 }
 .actor-24h {
-    font-size:8px;
+    font-size:10px;
     color:#93A6B4;
     margin-top:3px;
 }
 .actor-24h strong {
     color:#E7EDF1;
-    font-size:10px;
+    font-size:12px;
     font-weight:760;
 }
 
@@ -975,13 +975,13 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     box-shadow:none !important;
 }
 div[data-testid="stVerticalBlockBorderWrapper"] > div {
-    padding:.42rem .52rem .38rem !important;
+    padding:.54rem .64rem .50rem !important;
 }
 div[data-testid="stVerticalBlock"] {
-    gap:.34rem;
+    gap:.42rem;
 }
 .panel-title {
-    font-size:10px;
+    font-size:12px;
     font-weight:760;
     color:#AEBCC6;
     letter-spacing:.11em;
@@ -1003,13 +1003,13 @@ div[data-testid="stVerticalBlock"] {
    ========================================================== */
 .cap-card {
     border-radius:11px;
-    padding:5px 6px;
+    padding:8px 9px;
     background:#142534;
     border:1px solid #294052;
-    min-height:82px;
+    min-height:104px;
 }
 .cap-title {
-    font-size:9px;
+    font-size:11px;
     font-weight:760;
     color:#AACBDE;
     letter-spacing:.07em;
@@ -1020,52 +1020,52 @@ div[data-testid="stVerticalBlock"] {
 .cap-grid {
     display:grid;
     grid-template-columns:repeat(3,1fr);
-    gap:5px;
-    margin-top:5px;
+    gap:7px;
+    margin-top:7px;
 }
 .cap-cell {
-    padding:4px 2px;
+    padding:7px 3px;
     text-align:center;
     border-radius:7px;
     background:#0D1C27;
     border:1px solid #1D3140;
 }
 .cap-label {
-    font-size:7px;
+    font-size:9px;
     color:#6E8799;
     letter-spacing:.08em;
     font-weight:750;
 }
 .cap-value {
-    font-size:clamp(15px,1.0vw,21px);
+    font-size:clamp(20px,1.22vw,26px);
     line-height:1.05;
     font-weight:760;
     margin-top:2px;
     color:#F0F4F6;
 }
-.cap-sub {font-size:7px; color:#637B8D; margin-top:4px;}
+.cap-sub {font-size:9px; color:#637B8D; margin-top:5px;}
 .watchbar {
     border-left:3px solid #5FA7D8;
     border-radius:7px;
     background:#122838;
-    padding:7px 9px;
-    margin-top:5px;
+    padding:9px 11px;
+    margin-top:7px;
 }
-.watchbar b {color:#86B8D6; font-size:8px; letter-spacing:.11em;}
-.watchbar span {display:block; color:#C4D0D8; font-size:8px; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.watchbar b {color:#86B8D6; font-size:10px; letter-spacing:.11em;}
+.watchbar span {display:block; color:#C4D0D8; font-size:10px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 
 /* ==========================================================
    H. EUROPE ACTOR TABLE
    ========================================================== */
-.eu-summary {display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:4px;}
+.eu-summary {display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:7px;}
 .eu-summary-card {
     border-radius:9px;
     background:#142534;
     border:1px solid #294052;
-    padding:5px 6px;
+    padding:8px 9px;
 }
-.eu-summary-label {font-size:7px; color:#7593A9; font-weight:760; letter-spacing:.09em;}
-.eu-summary-value {font-size:17px; font-weight:760; line-height:1; margin-top:2px; color:#F1F5F7;}
+.eu-summary-label {font-size:9px; color:#7593A9; font-weight:760; letter-spacing:.09em;}
+.eu-summary-value {font-size:22px; font-weight:760; line-height:1; margin-top:3px; color:#F1F5F7;}
 .eu-table {width:100%;}
 .eu-actor-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 5px; margin-top:3px;}
 .eu-row {
@@ -1073,8 +1073,8 @@ div[data-testid="stVerticalBlock"] {
     grid-template-columns:1.65fr .55fr .68fr .58fr;
     gap:4px;
     align-items:center;
-    min-height:23px;
-    padding:2px 5px;
+    min-height:29px;
+    padding:4px 7px;
     border:1px solid #213442;
     border-radius:8px;
     background:#0D1B26;
@@ -1085,12 +1085,12 @@ div[data-testid="stVerticalBlock"] {
     gap:4px;
     padding:0 6px;
     color:#667F92;
-    font-size:7px;
+    font-size:9px;
     font-weight:760;
     letter-spacing:.08em;
 }
 .eu-namewrap {display:flex; align-items:center; gap:6px; min-width:0;}
-.eu-logo {width:16px; height:16px; object-fit:contain; flex:none;}
+.eu-logo {width:18px; height:18px; object-fit:contain; flex:none;}
 .eu-logo-fallback {
     width:16px;
     height:16px;
@@ -1100,12 +1100,12 @@ div[data-testid="stVerticalBlock"] {
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:7px;
+    font-size:8px;
     font-weight:760;
     flex:none;
 }
-.eu-name {font-size:8px; font-weight:680; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.eu-num {font-size:9px; font-weight:760; text-align:right;}
+.eu-name {font-size:10px; font-weight:680; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.eu-num {font-size:11px; font-weight:760; text-align:right;}
 .eu-muted {color:#70889c;}
 
 /* Compact Europe-events subheading inside the Europe panel */
@@ -1114,7 +1114,7 @@ div[data-testid="stVerticalBlock"] {
     padding-top:5px;
     border-top:1px solid #213442;
     color:#8EB8D0;
-    font-size:8px;
+    font-size:10px;
     font-weight:780;
     letter-spacing:.11em;
 }
@@ -1126,30 +1126,30 @@ div[data-testid="stVerticalBlock"] {
     display:grid;
     grid-template-columns:3px 1fr auto;
     gap:7px;
-    padding:3px 0;
+    padding:5px 0;
     border-bottom:1px solid #1C2E3B;
     align-items:center;
 }
-.change-line {width:3px; height:24px; border-radius:4px; background:var(--accent);}
-.change-name {font-size:9px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.change-meta {font-size:7px; color:#698196; margin-top:1px;}
-.change-orbit {font-size:8px; color:#8BA3B6; font-weight:760;}
+.change-line {width:3px; height:30px; border-radius:4px; background:var(--accent);}
+.change-name {font-size:11px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.change-meta {font-size:9px; color:#698196; margin-top:2px;}
+.change-orbit {font-size:10px; color:#8BA3B6; font-weight:760;}
 .next-card {
     border-radius:9px;
-    padding:5px 6px;
+    padding:8px 9px;
     margin-bottom:5px;
     background:#131F28;
     border:1px solid #2C3A43;
 }
-.next-date {font-size:8px; color:#BCA56E; font-weight:760;}
-.next-title {font-size:9px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
-.next-provider {font-size:7px; color:#72889A; margin-top:1px;}
+.next-date {font-size:10px; color:#BCA56E; font-weight:760;}
+.next-title {font-size:11px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px;}
+.next-provider {font-size:9px; color:#72889A; margin-top:2px;}
 
 /* ==========================================================
    J. LAUNCH GALLERY
    ========================================================== */
 .launch-card {
-    height:clamp(92px,10.4vh,112px);
+    height:clamp(125px,14.0vh,150px);
     border-radius:12px;
     overflow:hidden;
     border:1px solid #263A49;
@@ -1159,9 +1159,9 @@ div[data-testid="stVerticalBlock"] {
 .launch-img {width:100%; height:100%; object-fit:cover; display:block;}
 .launch-placeholder {width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:40px; background:#12222E;}
 .launch-overlay {position:absolute; left:0; right:0; bottom:0; padding:19px 9px 6px; background:linear-gradient(transparent,rgba(6,13,18,.94) 46%);}
-.launch-name {font-size:10px; font-weight:730; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.launch-meta {font-size:8px; color:#9AAEBB; margin-top:2px;}
-.launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(5,10,14,.62); color:#D0D8DE; font-size:6px;}
+.launch-name {font-size:12px; font-weight:730; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.launch-meta {font-size:10px; color:#9AAEBB; margin-top:3px;}
+.launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(5,10,14,.62); color:#D0D8DE; font-size:7px;}
 
 /* ==========================================================
    K. WARNINGS + FOOTER
@@ -1173,22 +1173,27 @@ div[data-testid="stVerticalBlock"] {
     background:#2A2418;
     border:1px solid #574C31;
     color:#CDBD92;
-    font-size:8px;
+    font-size:10px;
 }
-.footerline {display:flex; justify-content:space-between; margin-top:5px; color:#40596D; font-size:7px; letter-spacing:.06em;}
+.footerline {display:flex; justify-content:space-between; margin-top:7px; color:#40596D; font-size:8px; letter-spacing:.06em;}
 
-/* 16:9 monitor tuning */
+/* 16:9 monitor tuning — 24" 1080p is the readability baseline. */
 @media(max-width:1400px){
-  .actor-card{min-height:92px;}
-  .launch-card{height:94px;}
+  .hero-title{font-size:30px;}
+  .actor-card{min-height:112px;}
+  .actor-big{font-size:32px;}
+  .cap-card{min-height:98px;}
+  .launch-card{height:122px;}
 }
-@media(max-height:900px){
-  .block-container{padding-top:.28rem !important;padding-bottom:.20rem !important;}
-  .hero-title{font-size:28px;}
-  .news-ticker,.news-track{height:22px;}
-  .actor-card{min-height:90px;}
-  .cap-card{min-height:76px;}
-  .launch-card{height:88px;}
+@media(max-height:820px){
+  /* Only compress when the browser viewport is genuinely short. */
+  .block-container{padding-top:.26rem !important;padding-bottom:.18rem !important;}
+  .hero-title{font-size:29px;}
+  .news-ticker,.news-track{height:24px;}
+  .actor-card{min-height:104px;}
+  .cap-card{min-height:90px;}
+  .eu-row{min-height:26px;}
+  .launch-card{height:108px;}
   .section-row{margin:.20rem 0 .18rem;}
 }
 </style>
@@ -1334,7 +1339,7 @@ def render_europe_actor_table(recent, upcoming):
         f'</div>'
         f'<div class="eu-colheads"><div>EUROPEAN ACTOR</div><div style="text-align:right">LCH</div><div style="text-align:right">OBJECTS</div><div style="text-align:right">PLAN</div></div>'
         f'<div class="eu-actor-grid">{"".join(cards)}</div>'
-        f'<div style="font-size:6px;color:#526b7e;margin-top:2px">* estimated minimum · ? catalogue not yet resolved</div>'
+        f'<div style="font-size:7px;color:#526b7e;margin-top:2px">* estimated minimum · ? catalogue not yet resolved</div>'
     )
     raw_html(markup)
 
@@ -1367,14 +1372,14 @@ def orbit_visual(recent):
     svg = f"""
     <html><head><style>
       body{{margin:0;background:transparent;color:#EDF2F5;font-family:Inter,Segoe UI,Arial,sans-serif;}}
-      .wrap{{height:282px;border-radius:12px;background:#0D1B26;position:relative;border:1px solid #213442;}}
-      svg{{width:100%;height:240px;display:block;}}
+      .wrap{{height:318px;border-radius:12px;background:#0D1B26;position:relative;border:1px solid #213442;}}
+      svg{{width:100%;height:276px;display:block;}}
       .ring{{fill:none;stroke-width:1.35;}}
-      .label{{font-size:10px;font-weight:760;letter-spacing:1px;}}
-      .count{{font-size:15px;font-weight:760;}}
+      .label{{font-size:12px;font-weight:760;letter-spacing:1px;}}
+      .count{{font-size:18px;font-weight:760;}}
       .earth{{fill:#17384B;stroke:#577B91;stroke-width:1.1;}}
-      .minor{{font-size:8px;fill:#6F8596;}}
-      .legend{{display:flex;justify-content:center;gap:22px;font-size:9px;color:#7890A0;margin-top:-7px;}}
+      .minor{{font-size:10px;fill:#6F8596;}}
+      .legend{{display:flex;justify-content:center;gap:24px;font-size:10px;color:#7890A0;margin-top:-7px;}}
       .dot{{filter:none;}}
     </style></head><body>
       <div class="wrap">
@@ -1383,7 +1388,7 @@ def orbit_visual(recent):
         <circle cx="210" cy="125" r="88" class="ring" stroke="#6EAF9B" opacity=".66"/>
         <circle cx="210" cy="125" r="48" class="ring" stroke="#5FA7D8" opacity=".75"/>
         <circle cx="210" cy="125" r="27" class="earth"/>
-        <text x="210" y="129" text-anchor="middle" fill="#e7f4fc" font-size="9" font-weight="850">EARTH</text>
+        <text x="210" y="129" text-anchor="middle" fill="#e7f4fc" font-size="10" font-weight="850">EARTH</text>
 
         <!-- LEO marker, angle 140°, radius 48 -->
         <circle cx="173.2" cy="155.9" r="5" fill="#5FA7D8" class="dot"/>
@@ -1406,7 +1411,7 @@ def orbit_visual(recent):
       </div>
     </body></html>
     """
-    components.html(svg, height=232, scrolling=False)
+    components.html(svg, height=278, scrolling=False)
 
 
 def render_changes(recent, limit=6):
@@ -1610,7 +1615,7 @@ def render_dashboard():
                 st.markdown('<div class="launch-card"><div class="launch-placeholder">🛰️</div></div>', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 single-screen · v0.6.3 · launch/news 15 min · SATCAT fast-cache 5 min/6 h</span></div>',
+        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 single-screen · v0.6.4 readable · launch/news 15 min · SATCAT fast-cache 5 min/6 h</span></div>',
         unsafe_allow_html=True,
     )
 
