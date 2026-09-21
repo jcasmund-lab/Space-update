@@ -16,7 +16,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.1 · NORDIC CONTRAST · GLOBAL ACTIVITY MAP
+# SPACE UPDATE v0.8.2 · NORDIC CONTRAST · CLEAN MAP + EUROPE NOW/TARGET
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -938,6 +938,14 @@ div[data-testid="stHorizontalBlock"] {gap:.58rem;}
     font-size:9px;
     letter-spacing:.09em;
 }
+
+.hero-owner {
+    color:#365B68;
+    font-size:10px;
+    font-weight:820;
+    letter-spacing:.11em;
+    margin-bottom:3px;
+}
 .hero-time strong {
     display:block;
     color:#17313A;
@@ -1397,13 +1405,28 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 EU_REFERENCE_UPDATED = "SEP 2026"
 
 EU_REFERENCE = {
+    # Galileo: ESA describes the current system as 28 satellites in all.
+    # Nominal full constellation: 30 (27 operational + 3 active spares).
+    "GALILEO_NOW": "28 sats",
+    "GALILEO_NOMINAL": "30 nominal",
+    "GALILEO_G2_BUILD": "12 G2",
+    "GALILEO_NEXT": "2 FOC · end 2026",
+
+    # Core Sentinel platforms currently in orbit / operational or commissioning:
+    # S1C/D (2), S2A/B/C (3), S3A/B/C (3), S5P (1) = 9.
+    "COPERNICUS_NOW": "9 core sats",
+    "COPERNICUS_EXPANSION": "6 missions · 12 sats",
+
+    # IRIS²: dedicated constellation is not yet deployed.
+    "IRIS2_NOW": "0 sats",
     "IRIS2_TARGET": "348 sats",
     "IRIS2_ORBITS": "LEO + MEO",
     "IRIS2_FIRST": "2029",
     "IRIS2_FULL": "2030",
-    "GALILEO_G2_BUILD": "12 G2",
-    "GALILEO_NEXT": "2 FOC · end 2026",
-    "COPERNICUS_EXPANSION": "6 missions · 12 sats",
+
+    # GOVSATCOM is a service pooling existing sovereign/commercial capacity,
+    # not a dedicated satellite constellation.
+    "GOVSATCOM_DEDICATED": "0 dedicated",
     "GOVSATCOM_LIVE": "Jan 2026",
     "GOVSATCOM_POOL": "5 Member States",
     "GOVSATCOM_IRIS": "IRIS² from 2029",
@@ -1723,15 +1746,11 @@ def activity_map(recent, news):
         #map {{
           height:286px;
           width:100%;
-          background:#DDE8EB;
+          background:#DCE7EA;
           border:1px solid #CCD8DC;
           border-radius:9px;
           overflow:hidden;
           box-sizing:border-box;
-        }}
-        .leaflet-control-attribution {{
-          font-size:7px !important;
-          opacity:.58;
         }}
         .leaflet-control-zoom {{
           display:none;
@@ -1770,7 +1789,7 @@ def activity_map(recent, news):
 
         const map = L.map('map', {{
           zoomControl:false,
-          attributionControl:true,
+          attributionControl:false,
           worldCopyJump:false,
           minZoom:1,
           maxZoom:4,
@@ -1782,14 +1801,6 @@ def activity_map(recent, news):
           tap:false
         }}).setView([22, 8], 1.45);
 
-        L.tileLayer(
-          'https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png',
-          {{
-            attribution:'© OpenStreetMap © CARTO',
-            subdomains:'abcd',
-            maxZoom:5
-          }}
-        ).addTo(map);
 
         const colours = {{
           news:'#BFD6DE',
@@ -1805,10 +1816,10 @@ def activity_map(recent, news):
                 const iso3 = feature.id || '';
                 const item = activity[iso3];
                 return {{
-                  fillColor: item ? colours[item.state] : '#F7FAFA',
-                  fillOpacity: item ? 0.78 : 0.18,
+                  fillColor: item ? colours[item.state] : '#F8FAFA',
+                  fillOpacity: item ? 0.86 : 1.0,
                   color:'#AEBEC4',
-                  weight:0.45
+                  weight:0.55
                 }};
               }},
               onEachFeature: (feature, layer) => {{
@@ -1908,6 +1919,15 @@ def europe_live_totals():
 
 
 def render_europe_panel_v08(recent, upcoming, ytd):
+    """
+    Europe reference panel.
+
+    Principle:
+    - NOW = what exists today
+    - TARGET / BUILDING = where the programme is going
+    - NEXT = next concrete milestone
+    - ENABLES = what this actually gives Europe / the user
+    """
     totals = europe_live_totals()
     actor_rows = build_europe_actor_stats(recent, upcoming)
 
@@ -1924,16 +1944,18 @@ def render_europe_panel_v08(recent, upcoming, ytd):
         if ytd is not None else "—"
     )
 
-    gal_now = f'{fmt(totals["galileo"])} tracked' if totals["galileo"] is not None else "constellation live"
-    sent_now = f'{fmt(totals["sentinel"])} tracked' if totals["sentinel"] is not None else "fleet live"
-    oneweb_now = f'{fmt(totals["oneweb"])} tracked' if totals["oneweb"] is not None else "LEO fleet"
+    # OneWeb remains a useful commercial European connectivity reference.
+    oneweb_now = (
+        f'{fmt(totals["oneweb"])} tracked'
+        if totals.get("oneweb") is not None
+        else "LEO fleet"
+    )
 
-    # Only show the most useful launch actors on the wall display; all remain
-    # represented in the data engine and will appear if active/planned.
     ecosystem = []
     for actor, values in actor_rows:
         active = values["launches_7d"] > 0
         planned = values["planned_30d"] > 0
+
         if not active and not planned and actor not in {
             "Arianespace", "Avio", "Isar Aerospace",
             "Rocket Factory Augsburg", "Orbex", "PLD Space",
@@ -1944,12 +1966,15 @@ def render_europe_panel_v08(recent, upcoming, ytd):
             ('<span class="dot-active"></span>' if active else '<span class="dot-idle"></span>')
             + ('<span class="dot-plan"></span>' if planned else '')
         )
+
         short = {
             "Rocket Factory Augsburg": "RFA",
             "Isar Aerospace": "Isar",
-            "Arianespace": "Arianespace",
         }.get(actor, actor)
-        ecosystem.append(f'<span class="eco-pill">{dots}{esc(short)}</span>')
+
+        ecosystem.append(
+            f'<span class="eco-pill">{dots}{esc(short)}</span>'
+        )
 
     raw_html(
         f'<div class="eu-summary">'
@@ -1963,40 +1988,44 @@ def render_europe_panel_v08(recent, upcoming, ytd):
 
         f'<div class="eu-ref-grid">'
 
+        # GALILEO
         f'<div class="eu-ref-card">'
         f'<div class="eu-ref-top"><div><div class="eu-ref-name">GALILEO</div>'
-        f'<div class="eu-ref-role">POSITION & TIME</div></div>'
-        f'<div class="eu-ref-main">{gal_now}</div></div>'
-        f'<div class="eu-ref-line"><strong>NEXT</strong> {EU_REFERENCE["GALILEO_NEXT"]}</div>'
-        f'<div class="eu-ref-line"><strong>BUILDING</strong> {EU_REFERENCE["GALILEO_G2_BUILD"]}</div>'
+        f'<div class="eu-ref-role">POSITION &amp; TIME</div></div>'
+        f'<div class="eu-ref-main">{EU_REFERENCE["GALILEO_NOW"]}</div></div>'
+        f'<div class="eu-ref-line"><strong>NOMINAL</strong> {EU_REFERENCE["GALILEO_NOMINAL"]}</div>'
+        f'<div class="eu-ref-line"><strong>NEXT</strong> {EU_REFERENCE["GALILEO_NEXT"]} · <strong>BUILDING</strong> {EU_REFERENCE["GALILEO_G2_BUILD"]}</div>'
         f'<div class="eu-ref-use"><b>ENABLES</b> navigation · precise timing · encrypted PRS</div>'
         f'</div>'
 
+        # COPERNICUS
         f'<div class="eu-ref-card">'
         f'<div class="eu-ref-top"><div><div class="eu-ref-name">COPERNICUS / SENTINEL</div>'
-        f'<div class="eu-ref-role">SEE & MONITOR</div></div>'
-        f'<div class="eu-ref-main">{sent_now}</div></div>'
+        f'<div class="eu-ref-role">SEE &amp; MONITOR</div></div>'
+        f'<div class="eu-ref-main">{EU_REFERENCE["COPERNICUS_NOW"]}</div></div>'
         f'<div class="eu-ref-line"><strong>EXPANDING</strong> {EU_REFERENCE["COPERNICUS_EXPANSION"]}</div>'
         f'<div class="eu-ref-line"><strong>SENSORS</strong> radar · IR · hyperspectral · CO₂</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> sea ice · ships · land · disasters</div>'
+        f'<div class="eu-ref-use"><b>ENABLES</b> sea ice · ship detection · land imagery · disaster mapping</div>'
         f'</div>'
 
+        # IRIS2
         f'<div class="eu-ref-card">'
         f'<div class="eu-ref-top"><div><div class="eu-ref-name">IRIS²</div>'
         f'<div class="eu-ref-role">SECURELY CONNECT</div></div>'
-        f'<div class="eu-ref-main">{EU_REFERENCE["IRIS2_TARGET"]}</div></div>'
-        f'<div class="eu-ref-line"><strong>ORBITS</strong> {EU_REFERENCE["IRIS2_ORBITS"]}</div>'
+        f'<div class="eu-ref-main">{EU_REFERENCE["IRIS2_NOW"]}</div></div>'
+        f'<div class="eu-ref-line"><strong>TARGET</strong> {EU_REFERENCE["IRIS2_TARGET"]} · {EU_REFERENCE["IRIS2_ORBITS"]}</div>'
         f'<div class="eu-ref-line"><strong>SERVICE</strong> first {EU_REFERENCE["IRIS2_FIRST"]} · full {EU_REFERENCE["IRIS2_FULL"]}</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> government · defence · crisis connectivity</div>'
+        f'<div class="eu-ref-use"><b>ENABLES</b> secure government · defence · crisis connectivity</div>'
         f'</div>'
 
+        # GOVSATCOM
         f'<div class="eu-ref-card">'
         f'<div class="eu-ref-top"><div><div class="eu-ref-name">GOVSATCOM</div>'
         f'<div class="eu-ref-role">GOVERNMENT SATCOM</div></div>'
-        f'<div class="eu-ref-main">LIVE</div></div>'
-        f'<div class="eu-ref-line"><strong>SINCE</strong> {EU_REFERENCE["GOVSATCOM_LIVE"]}</div>'
-        f'<div class="eu-ref-line"><strong>CAPACITY</strong> {EU_REFERENCE["GOVSATCOM_POOL"]} · {EU_REFERENCE["GOVSATCOM_IRIS"]}</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> secure government & military communications</div>'
+        f'<div class="eu-ref-main">{EU_REFERENCE["GOVSATCOM_DEDICATED"]}</div></div>'
+        f'<div class="eu-ref-line"><strong>LIVE</strong> since {EU_REFERENCE["GOVSATCOM_LIVE"]}</div>'
+        f'<div class="eu-ref-line"><strong>POOL</strong> {EU_REFERENCE["GOVSATCOM_POOL"]} · {EU_REFERENCE["GOVSATCOM_IRIS"]}</div>'
+        f'<div class="eu-ref-use"><b>ENABLES</b> pooled secure satellite capacity for government &amp; military users</div>'
         f'</div>'
 
         f'</div>'
@@ -2009,7 +2038,6 @@ def render_europe_panel_v08(recent, upcoming, ytd):
 
         f'<div class="ecosystem">{"".join(ecosystem)}</div>'
     )
-
 
 def render_changes_v08(recent, limit=3):
     if not recent:
@@ -2171,7 +2199,9 @@ def render_dashboard():
         f'<div class="hero">'
         f'<div><div class="hero-title">SPACE UPDATE</div>'
         f'<div class="hero-sub">GLOBAL ACTIVITY · EUROPEAN CAPABILITY · 7 DAY PICTURE</div></div>'
-        f'<div class="hero-time">{dot}{status}'
+        f'<div class="hero-time">'
+        f'<div class="hero-owner">AIR &amp; SPACE WARFARE CENTRE</div>'
+        f'{dot}{status}'
         f'<strong>{now.strftime("%d %b · %H:%M")}</strong></div>'
         f'</div>'
     )
@@ -2284,7 +2314,7 @@ def render_dashboard():
     raw_html(
         '<div class="footerline">'
         '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL</span>'
-        '<span>v0.8.1 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>v0.8.2 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
