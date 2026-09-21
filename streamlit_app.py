@@ -1,16 +1,33 @@
 import html
 import re
+import xml.etree.ElementTree as ET
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.4.1
+# SPACE UPDATE v0.6 · NORDIC
 # 16:9 information display for 24–40" monitors
+#
+# LOCKED CORE FEATURES
+# - 16:9 single-screen wall display
+# - 5 major actor cards
+# - launches + new orbital objects (24h / 7d)
+# - Europe capability picture
+# - all European launch actors
+# - orbital picture + What Changed?
+# - next launches
+# - launch image gallery
+# - rolling news ticker
+# - automatic data refresh
 # ============================================================
 
 st.set_page_config(
@@ -20,17 +37,36 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-LL2 = "https://ll.thespacedevs.com/2.3.0"
+LL2_BASES = [
+    "https://ll.thespacedevs.com/2.3.0",
+    "https://ll.thespacedevs.com/2.2.0",
+]
 CELESTRAK_GP = "https://celestrak.org/NORAD/elements/gp.php"
-HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.4.1 (Streamlit wall display)"}
+CELESTRAK_SATCAT = "https://celestrak.org/satcat/records.php"
+HEADERS = {"User-Agent": "SpaceUpdateDashboard/0.6-nordic (Streamlit 16:9 wall display)"}
+
+NEWS_FEEDS = [
+    ("EUSPA", "https://www.euspa.europa.eu/pressroom/press-releases/rss.xml", 0),
+    ("ESA", "https://www.esa.int/rssfeed/Our_Activities/Space_News", 1),
+    ("JPL", "https://www.jpl.nasa.gov/feeds/news/", 2),
+]
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 
 ACTOR_COLOURS = {
-    "EUROPE": "#22b8f0",
-    "USA": "#83aef5",
-    "CHINA": "#ff6b57",
-    "RUSSIA": "#d75a86",
-    "OTHER": "#e5b653",
+    # Deliberately muted Nordic accents: clear separation without neon/gaming feel.
+    "EUROPE": "#5FA7D8",
+    "USA": "#8EA9D1",
+    "CHINA": "#D88472",
+    "RUSSIA": "#B77A97",
+    "OTHER": "#C7A86A",
+}
+
+ACTOR_FLAGS = {
+    "EUROPE": "🇪🇺",
+    "USA": "🇺🇸",
+    "CHINA": "🇨🇳",
+    "RUSSIA": "🇷🇺",
+    "OTHER": "🌍",
 }
 
 # Fixed European launch actors we always want visible, even when their count is zero.
@@ -125,49 +161,84 @@ def orbit_group(launch):
 # ============================================================
 
 
-def _request_json(url, params, timeout=8):
-    """One HTTP request. Raise on failure so Streamlit never caches a failed result."""
-    r = requests.get(url, params=params, headers=HEADERS, timeout=timeout)
-    r.raise_for_status()
-    return r.json()
+def _session():
+    session = requests.Session()
+    retry = Retry(
+        total=2,
+        connect=2,
+        read=2,
+        backoff_factor=0.7,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset(["GET"]),
+        raise_on_status=False,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session
+
+
+def _request_json(url, params=None, timeout=15):
+    """HTTP JSON request with short retries. Exceptions are not cached."""
+    with _session() as session:
+        r = session.get(url, params=params, headers=HEADERS, timeout=timeout)
+        r.raise_for_status()
+        return r.json()
+
+
+def _request_text(url, timeout=15):
+    with _session() as session:
+        r = session.get(url, headers=HEADERS, timeout=timeout)
+        r.raise_for_status()
+        return r.text
+
+
+def _ll2_json(path, params, timeout=18):
+    last_error = None
+    for base in LL2_BASES:
+        try:
+            return _request_json(f"{base}{path}", params, timeout=timeout)
+        except Exception as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    raise RuntimeError("Launch Library unavailable")
 
 
 @st.cache_data(ttl=900, show_spinner=False)
 def _recent_launches_cached(days=7):
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=days)
-
-    # First use the precise filtered request that worked in v0.3.
     params = {
         "format": "json",
-        "limit": 100,
+        "limit": 60,
         "ordering": "-net",
         "net__gte": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "net__lte": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     try:
-        payload = _request_json(f"{LL2}/launches/previous/", params, timeout=8)
+        payload = _ll2_json("/launches/previous/", params, timeout=18)
         return payload.get("results", [])
     except Exception:
-        # Fallback: get the latest launches and filter locally.
-        payload = _request_json(
-            f"{LL2}/launches/previous/",
-            {"format": "json", "limit": 100, "ordering": "-net"},
-            timeout=8,
+        # Fallback to an unfiltered recent page and filter locally.
+        payload = _ll2_json(
+            "/launches/previous/",
+            {"format": "json", "limit": 60, "ordering": "-net"},
+            timeout=18,
         )
-        out = []
-        for launch in payload.get("results", []):
-            d = parse_dt(launch.get("net"))
-            if d and start <= d <= now:
-                out.append(launch)
-        return out
+        return [
+            x for x in payload.get("results", [])
+            if (parse_dt(x.get("net")) and start <= parse_dt(x.get("net")) <= now)
+        ]
 
 
 def get_recent_launches(days=7):
     try:
-        return _recent_launches_cached(days), True
+        data = _recent_launches_cached(days)
+        if data:
+            st.session_state["last_recent_launches"] = data
+        return data, True
     except Exception:
-        return [], False
+        stale = st.session_state.get("last_recent_launches", [])
+        return stale, bool(stale)
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -176,40 +247,41 @@ def _upcoming_launches_cached(days=30):
     end = now + timedelta(days=days)
     params = {
         "format": "json",
-        "limit": 100,
+        "limit": 60,
         "ordering": "net",
         "net__gte": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "net__lte": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     try:
-        payload = _request_json(f"{LL2}/launches/upcoming/", params, timeout=8)
+        payload = _ll2_json("/launches/upcoming/", params, timeout=18)
         return payload.get("results", [])
     except Exception:
-        payload = _request_json(
-            f"{LL2}/launches/upcoming/",
-            {"format": "json", "limit": 100, "ordering": "net"},
-            timeout=8,
+        payload = _ll2_json(
+            "/launches/upcoming/",
+            {"format": "json", "limit": 60, "ordering": "net"},
+            timeout=18,
         )
-        out = []
-        for launch in payload.get("results", []):
-            d = parse_dt(launch.get("net"))
-            if d and now <= d <= end:
-                out.append(launch)
-        return out
+        return [
+            x for x in payload.get("results", [])
+            if (parse_dt(x.get("net")) and now <= parse_dt(x.get("net")) <= end)
+        ]
 
 
 def get_upcoming_launches(days=30):
     try:
-        return _upcoming_launches_cached(days), True
+        data = _upcoming_launches_cached(days)
+        if data:
+            st.session_state["last_upcoming_launches"] = data
+        return data, True
     except Exception:
-        return [], False
+        stale = st.session_state.get("last_upcoming_launches", [])
+        return stale, bool(stale)
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=21600, show_spinner=False)
 def _ytd_launches_cached():
-    """YTD is secondary data. Keep it bounded so it can never stall the screen."""
     year = datetime.now(timezone.utc).year
-    url = f"{LL2}/launches/previous/"
+    url_path = "/launches/previous/"
     params = {
         "format": "json",
         "limit": 100,
@@ -217,22 +289,28 @@ def _ytd_launches_cached():
         "year": year,
     }
     results = []
-    # At most four pages. Enough for a normal year without turning this into a crawler.
-    for _ in range(4):
-        payload = _request_json(url, params, timeout=7)
+    next_url = None
+    for page in range(4):
+        if page == 0:
+            payload = _ll2_json(url_path, params, timeout=18)
+        else:
+            payload = _request_json(next_url, None, timeout=18)
         results.extend(payload.get("results", []))
-        url = payload.get("next")
-        params = None
-        if not url:
+        next_url = payload.get("next")
+        if not next_url:
             break
     return results
 
 
 def get_ytd_launches():
     try:
-        return _ytd_launches_cached(), True
+        data = _ytd_launches_cached()
+        if data:
+            st.session_state["last_ytd_launches"] = data
+        return data, True
     except Exception:
-        return [], False
+        stale = st.session_state.get("last_ytd_launches", [])
+        return stale, bool(stale)
 
 
 @st.cache_data(ttl=7200, show_spinner=False)
@@ -240,7 +318,7 @@ def _celestrak_count_cached(query_type, value):
     data = _request_json(
         CELESTRAK_GP,
         {query_type.upper(): value, "FORMAT": "JSON"},
-        timeout=4,
+        timeout=10,
     )
     if not isinstance(data, list):
         raise ValueError("Unexpected CelesTrak response")
@@ -256,13 +334,14 @@ def celestrak_count(query_type, value):
 
 @st.cache_data(ttl=21600, show_spinner=False)
 def _catalogued_objects_cached(launch_designator):
+    # SATCAT is the right source for newly catalogued objects associated with a launch.
     data = _request_json(
-        CELESTRAK_GP,
-        {"INTDES": launch_designator, "FORMAT": "JSON"},
-        timeout=4,
+        CELESTRAK_SATCAT,
+        {"INTDES": launch_designator, "FORMAT": "JSON", "ONORBIT": 1},
+        timeout=10,
     )
     if not isinstance(data, list):
-        raise ValueError("Unexpected CelesTrak response")
+        raise ValueError("Unexpected CelesTrak SATCAT response")
     return len(data)
 
 
@@ -273,6 +352,88 @@ def catalogued_objects_for_launch(launch_designator):
         return _catalogued_objects_cached(launch_designator)
     except Exception:
         return None
+
+
+def prefetch_object_catalogue(launches):
+    """Warm the SATCAT cache in parallel without hammering CelesTrak."""
+    designators = sorted({x.get("launch_designator") for x in launches if x.get("launch_designator")})
+    if not designators:
+        return
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [pool.submit(catalogued_objects_for_launch, d) for d in designators]
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception:
+                pass
+
+
+def _xml_text(element, names):
+    for child in element.iter():
+        tag = child.tag.split("}")[-1].lower()
+        if tag in names and child.text:
+            return child.text.strip()
+    return ""
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _news_cached():
+    items = []
+    for source, url, priority in NEWS_FEEDS:
+        try:
+            xml = _request_text(url, timeout=15)
+            root = ET.fromstring(xml)
+            candidates = [x for x in root.iter() if x.tag.split("}")[-1].lower() in ("item", "entry")]
+            for item in candidates[:6]:
+                title = _xml_text(item, {"title"})
+                link = _xml_text(item, {"link"})
+                if not link:
+                    for child in item.iter():
+                        if child.tag.split("}")[-1].lower() == "link":
+                            link = child.attrib.get("href", "")
+                            if link:
+                                break
+                raw_date = _xml_text(item, {"pubdate", "published", "updated", "date"})
+                dt = None
+                if raw_date:
+                    try:
+                        dt = parsedate_to_datetime(raw_date)
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                    except Exception:
+                        try:
+                            dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+                        except Exception:
+                            dt = None
+                if title:
+                    items.append({"source": source, "title": title, "link": link, "date": dt, "priority": priority})
+        except Exception:
+            continue
+
+    # Remove duplicates, then favour recent items; Europe wins ties.
+    seen = set()
+    unique = []
+    for x in items:
+        key = re.sub(r"\W+", "", x["title"].lower())[:120]
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(x)
+
+    floor = datetime.now(timezone.utc) - timedelta(days=10)
+    fresh = [x for x in unique if x["date"] is None or x["date"].astimezone(timezone.utc) >= floor]
+    fresh.sort(key=lambda x: (x["date"] or datetime(1970,1,1,tzinfo=timezone.utc), -x["priority"]), reverse=True)
+    return fresh[:10]
+
+
+def get_news():
+    try:
+        data = _news_cached()
+        if data:
+            st.session_state["last_news"] = data
+        return data, bool(data)
+    except Exception:
+        stale = st.session_state.get("last_news", [])
+        return stale, bool(stale)
 
 
 def provider_logo_from_launch(launch):
@@ -373,8 +534,13 @@ def estimate_payload_count_from_text(launch):
 def object_count_for_launch(launch):
     designator = launch.get("launch_designator")
     exact = catalogued_objects_for_launch(designator) if designator else None
+    status = ((launch.get("status") or {}).get("abbrev") or "").lower()
     if exact is not None:
-        return exact, "catalogued"
+        # A successful orbital launch with zero SATCAT records is usually catalogue lag, not a real zero.
+        if exact == 0 and status in ("success", "go", "tbc"):
+            exact = None
+        else:
+            return exact, "catalogued"
     estimate = estimate_payload_count_from_text(launch)
     if estimate is not None:
         return estimate, "estimated"
@@ -510,104 +676,419 @@ def europe_capability_stats(recent, upcoming, ytd):
 
 
 # ============================================================
-# DISPLAY CSS
+# 06 · VISUAL DESIGN / CSS
+# Nordic direction: calm, flat, spacious, restrained accents.
+# Keep class names stable so individual sections can be restyled later.
 # ============================================================
 
 st.markdown(
     """
 <style>
+/* ==========================================================
+   A. STREAMLIT CHROME + 16:9 CANVAS
+   ========================================================== */
 header[data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer {display:none !important;}
 [data-testid="stSidebar"] {display:none !important;}
-.block-container {max-width:100vw !important; padding:0.8rem 1.05rem 0.6rem 1.05rem !important;}
-.stApp {
-    color:#f4f8fc;
-    background:
-        radial-gradient(circle at 48% -10%, rgba(25,65,103,.32), transparent 42%),
-        linear-gradient(180deg,#07111d 0%,#050b12 100%);
+.block-container {
+    max-width:100vw !important;
+    padding:0.72rem 1.0rem 0.52rem 1.0rem !important;
 }
-html, body, [class*="css"] {font-family:Inter,"Segoe UI",Arial,sans-serif;}
+.stApp {
+    color:#F3F6F8;
+    background:#09131D;
+}
+html, body, [class*="css"] {
+    font-family:Inter,"Segoe UI",Arial,sans-serif;
+    letter-spacing:0;
+}
 
-.hero {display:flex; justify-content:space-between; align-items:flex-end; margin:0 0 .35rem 0;}
-.hero-title {font-size:clamp(30px,2.15vw,43px); font-weight:900; letter-spacing:.095em; line-height:.95;}
-.hero-sub {font-size:clamp(10px,.72vw,14px); color:#71879b; letter-spacing:.12em; margin-top:.25rem;}
-.hero-time {text-align:right; color:#7890a4; font-size:10px; letter-spacing:.08em;}
-.hero-time strong {display:block; color:#f4f8fc; font-size:17px; margin-top:2px;}
-.live-dot {display:inline-block; width:7px; height:7px; border-radius:50%; background:#4dd58b; box-shadow:0 0 8px #4dd58b; margin-right:5px;}
+/* ==========================================================
+   B. HEADER
+   ========================================================== */
+.hero {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    margin:0 0 .30rem 0;
+}
+.hero-title {
+    font-size:clamp(29px,2.05vw,41px);
+    font-weight:780;
+    letter-spacing:.075em;
+    line-height:1;
+    color:#F5F7F8;
+}
+.hero-sub {
+    font-size:clamp(9px,.68vw,13px);
+    color:#73899A;
+    letter-spacing:.10em;
+    margin-top:.28rem;
+}
+.hero-time {
+    text-align:right;
+    color:#6F8596;
+    font-size:9px;
+    letter-spacing:.08em;
+}
+.hero-time strong {
+    display:block;
+    color:#EDF2F5;
+    font-size:16px;
+    font-weight:680;
+    margin-top:2px;
+}
+.live-dot {
+    display:inline-block;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#7BC5A4;
+    margin-right:5px;
+}
 
-.section-row {display:flex; justify-content:space-between; align-items:center; margin:.33rem 0 .28rem;}
-.section-title {font-size:11px; font-weight:850; color:#91a8bc; letter-spacing:.14em;}
-.source-note {font-size:9px; color:#4f687c; letter-spacing:.10em;}
+/* ==========================================================
+   C. SECTION HEADINGS
+   ========================================================== */
+.section-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:.31rem 0 .26rem;
+}
+.section-title {
+    font-size:10px;
+    font-weight:760;
+    color:#A6B6C2;
+    letter-spacing:.12em;
+}
+.source-note {
+    font-size:8px;
+    color:#52697B;
+    letter-spacing:.09em;
+}
 
-.actor-card {border-radius:12px; padding:9px 12px 8px; min-height:95px; background:linear-gradient(145deg,rgba(16,35,53,.98),rgba(8,20,31,.98)); border:1px solid rgba(111,145,174,.22); overflow:hidden; position:relative;}
-.actor-card:after {content:""; position:absolute; width:100px; height:100px; border-radius:50%; right:-45px; top:-52px; background:var(--accent); opacity:.09;}
-.actor-topline {display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.actor-mainlogo {width:28px;height:28px;object-fit:contain;}
-.actor-mainfallback {width:28px;height:28px;border-radius:7px;border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:9px;font-weight:900;}
-.actor-name {font-size:11px; font-weight:850; letter-spacing:.12em; color:var(--accent);}
-.actor-big {font-size:clamp(30px,2.1vw,43px); font-weight:900; line-height:.95; margin-top:7px;}
-.actor-small {font-size:9px; color:#70889c; line-height:1.35; margin-top:3px;}
-.actor-small strong {color:#d9e6f0; font-size:11px;}
+/* ==========================================================
+   D. NEWS TICKER
+   ========================================================== */
+.news-ticker {
+    height:27px;
+    overflow:hidden;
+    border:1px solid #1B2B39;
+    border-radius:9px;
+    background:#0D1924;
+    margin:.16rem 0 .30rem;
+    position:relative;
+}
+.news-ticker:before {
+    content:"NEWS";
+    position:absolute;
+    z-index:3;
+    left:0;
+    top:0;
+    bottom:0;
+    display:flex;
+    align-items:center;
+    padding:0 10px;
+    background:#152737;
+    color:#9FC6DD;
+    font-size:8px;
+    font-weight:800;
+    letter-spacing:.12em;
+    border-right:1px solid #263A49;
+}
+.news-track {
+    display:flex;
+    width:max-content;
+    height:27px;
+    align-items:center;
+    animation:news-scroll 88s linear infinite;
+    padding-left:68px;
+}
+.news-set {display:flex; align-items:center; white-space:nowrap;}
+.news-item {font-size:9px; color:#C9D3DA; margin-right:26px;}
+.news-source {color:#8FB9D0; font-weight:760; letter-spacing:.07em; margin-right:5px;}
+.news-dot {color:#3F5667; margin-right:9px;}
+@keyframes news-scroll {from{transform:translateX(0)} to{transform:translateX(-50%)}}
 
-div[data-testid="stVerticalBlockBorderWrapper"] {background:linear-gradient(155deg,rgba(14,31,47,.98),rgba(7,18,28,.98)); border:1px solid #18364f !important; border-radius:13px !important;}
-.panel-title {font-size:11px; font-weight:850; color:#9db3c6; letter-spacing:.13em; margin-bottom:7px; padding-top:1px;}
-.accent-blue {height:3px;border-radius:4px;background:#22b8f0;box-shadow:0 0 12px rgba(34,184,240,.35);margin:-4px 0 7px;}
-.accent-green {height:3px;border-radius:4px;background:#43d4b1;box-shadow:0 0 12px rgba(67,212,177,.28);margin:-4px 0 7px;}
-.accent-gold {height:3px;border-radius:4px;background:#e5b653;box-shadow:0 0 12px rgba(229,182,83,.28);margin:-4px 0 7px;}
+/* ==========================================================
+   E. MAJOR ACTOR CARDS
+   Big number = 7 days. Small line below = 24 hours.
+   Each card contains LAUNCHES + NEW OBJECTS.
+   ========================================================== */
+.actor-card {
+    border-radius:14px;
+    padding:10px 12px 9px;
+    min-height:112px;
+    background:#101E2A;
+    border:1px solid #263948;
+    border-top:3px solid var(--accent);
+    overflow:hidden;
+    position:relative;
+}
+.actor-card:after {display:none;}
+.actor-topline {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:6px;
+}
+.actor-name {
+    font-size:10px;
+    font-weight:780;
+    letter-spacing:.11em;
+    color:var(--accent);
+}
+.actor-flag {
+    width:33px;
+    height:25px;
+    border-radius:7px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#142431;
+    border:1px solid #2A3E4D;
+    font-size:18px;
+    line-height:1;
+}
+.actor-metrics {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+.actor-metric + .actor-metric {
+    border-left:1px solid #293B49;
+    padding-left:10px;
+}
+.actor-metric-label {
+    font-size:7px;
+    color:#778D9E;
+    font-weight:760;
+    letter-spacing:.09em;
+}
+.actor-big {
+    font-size:clamp(27px,1.9vw,39px);
+    font-weight:760;
+    line-height:.95;
+    margin-top:3px;
+    color:#F4F7F9;
+}
+.actor-seven-label {
+    font-size:7px;
+    color:#657B8C;
+    letter-spacing:.07em;
+    margin-top:2px;
+}
+.actor-24h {
+    font-size:8px;
+    color:#93A6B4;
+    margin-top:5px;
+}
+.actor-24h strong {
+    color:#E7EDF1;
+    font-size:10px;
+    font-weight:760;
+}
 
-.cap-card {border-radius:10px; padding:9px 10px; background:#132c43; border:1px solid rgba(63,143,197,.28); min-height:108px;}
-.cap-title {font-size:10px; font-weight:850; color:#9fd4f6; letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.cap-grid {display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:7px;}
-.cap-cell {padding:5px 2px; text-align:center; border-radius:7px; background:rgba(4,16,27,.36);}
-.cap-label {font-size:7px; color:#69849a; letter-spacing:.09em; font-weight:800;}
-.cap-value {font-size:clamp(17px,1.25vw,25px); line-height:1.05; font-weight:900; margin-top:2px;}
-.cap-sub {font-size:8px; color:#647e94; margin-top:6px;}
+/* ==========================================================
+   F. PANEL CONTAINERS
+   ========================================================== */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background:#0F1C27;
+    border:1px solid #253746 !important;
+    border-radius:14px !important;
+    box-shadow:none !important;
+}
+.panel-title {
+    font-size:10px;
+    font-weight:760;
+    color:#AEBCC6;
+    letter-spacing:.11em;
+    margin-bottom:7px;
+    padding-top:1px;
+}
+.accent-blue,.accent-green,.accent-gold {
+    height:2px;
+    border-radius:3px;
+    margin:-4px 0 8px;
+    box-shadow:none;
+}
+.accent-blue {background:#5FA7D8;}
+.accent-green {background:#6EAF9B;}
+.accent-gold {background:#B99C62;}
 
-.watchbar {border-left:3px solid #26b9ee; border-radius:7px; background:rgba(12,53,78,.48); padding:7px 9px; margin-top:7px;}
-.watchbar b {color:#37bdf1; font-size:8px; letter-spacing:.13em;}
-.watchbar span {display:block; color:#c5d7e5; font-size:10px; margin-top:2px;}
+/* ==========================================================
+   G. EUROPE CAPABILITY CARDS
+   ========================================================== */
+.cap-card {
+    border-radius:11px;
+    padding:9px 10px;
+    background:#142534;
+    border:1px solid #294052;
+    min-height:108px;
+}
+.cap-title {
+    font-size:9px;
+    font-weight:760;
+    color:#AACBDE;
+    letter-spacing:.07em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.cap-grid {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:5px;
+    margin-top:7px;
+}
+.cap-cell {
+    padding:5px 2px;
+    text-align:center;
+    border-radius:7px;
+    background:#0D1C27;
+    border:1px solid #1D3140;
+}
+.cap-label {
+    font-size:7px;
+    color:#6E8799;
+    letter-spacing:.08em;
+    font-weight:750;
+}
+.cap-value {
+    font-size:clamp(17px,1.2vw,24px);
+    line-height:1.05;
+    font-weight:760;
+    margin-top:2px;
+    color:#F0F4F6;
+}
+.cap-sub {font-size:8px; color:#637B8D; margin-top:6px;}
+.watchbar {
+    border-left:3px solid #5FA7D8;
+    border-radius:7px;
+    background:#122838;
+    padding:7px 9px;
+    margin-top:7px;
+}
+.watchbar b {color:#86B8D6; font-size:8px; letter-spacing:.11em;}
+.watchbar span {display:block; color:#C4D0D8; font-size:10px; margin-top:2px;}
 
+/* ==========================================================
+   H. EUROPE ACTOR TABLE
+   ========================================================== */
 .eu-summary {display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:6px;}
-.eu-summary-card {border-radius:8px; background:rgba(17,43,64,.75); border:1px solid rgba(72,150,207,.22); padding:7px 8px;}
-.eu-summary-label {font-size:7px; color:#6e93b1; font-weight:850; letter-spacing:.10em;}
-.eu-summary-value {font-size:22px; font-weight:900; line-height:1; margin-top:3px;}
-
+.eu-summary-card {
+    border-radius:9px;
+    background:#142534;
+    border:1px solid #294052;
+    padding:7px 8px;
+}
+.eu-summary-label {font-size:7px; color:#7593A9; font-weight:760; letter-spacing:.09em;}
+.eu-summary-value {font-size:21px; font-weight:760; line-height:1; margin-top:3px; color:#F1F5F7;}
 .eu-table {width:100%;}
 .eu-actor-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 8px; margin-top:5px;}
-.eu-row {display:grid; grid-template-columns:1.65fr .55fr .68fr .58fr; gap:4px; align-items:center; min-height:29px; padding:4px 6px; border:1px solid rgba(117,148,172,.11); border-radius:7px; background:rgba(7,21,32,.28);}
-.eu-colheads {display:grid;grid-template-columns:1.65fr .55fr .68fr .58fr;gap:4px;padding:0 6px;color:#67869f;font-size:7px;font-weight:850;letter-spacing:.09em;}
+.eu-row {
+    display:grid;
+    grid-template-columns:1.65fr .55fr .68fr .58fr;
+    gap:4px;
+    align-items:center;
+    min-height:29px;
+    padding:4px 6px;
+    border:1px solid #213442;
+    border-radius:8px;
+    background:#0D1B26;
+}
+.eu-colheads {
+    display:grid;
+    grid-template-columns:1.65fr .55fr .68fr .58fr;
+    gap:4px;
+    padding:0 6px;
+    color:#667F92;
+    font-size:7px;
+    font-weight:760;
+    letter-spacing:.08em;
+}
 .eu-namewrap {display:flex; align-items:center; gap:6px; min-width:0;}
 .eu-logo {width:19px; height:19px; object-fit:contain; flex:none;}
-.eu-logo-fallback {width:19px; height:19px; border-radius:5px; border:1px solid #31536e; color:#83a8c5; display:flex; align-items:center; justify-content:center; font-size:7px; font-weight:900; flex:none;}
-.eu-name {font-size:9px; font-weight:720; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.eu-num {font-size:11px; font-weight:850; text-align:right;}
+.eu-logo-fallback {
+    width:19px;
+    height:19px;
+    border-radius:5px;
+    border:1px solid #365166;
+    color:#8EA9BB;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:7px;
+    font-weight:760;
+    flex:none;
+}
+.eu-name {font-size:9px; font-weight:680; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.eu-num {font-size:11px; font-weight:760; text-align:right;}
 .eu-muted {color:#70889c;}
 
-.change-row {display:grid; grid-template-columns:4px 1fr auto; gap:7px; padding:5px 0; border-bottom:1px solid rgba(108,139,164,.10); align-items:center;}
-.change-line {width:4px; height:28px; border-radius:4px; background:var(--accent);}
-.change-name {font-size:9px; font-weight:760; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+/* ==========================================================
+   I. WHAT CHANGED + NEXT LAUNCHES
+   ========================================================== */
+.change-row {
+    display:grid;
+    grid-template-columns:3px 1fr auto;
+    gap:7px;
+    padding:5px 0;
+    border-bottom:1px solid #1C2E3B;
+    align-items:center;
+}
+.change-line {width:3px; height:27px; border-radius:4px; background:var(--accent);}
+.change-name {font-size:9px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .change-meta {font-size:7px; color:#698196; margin-top:1px;}
-.change-orbit {font-size:8px; color:#8ba3b6; font-weight:800;}
+.change-orbit {font-size:8px; color:#8BA3B6; font-weight:760;}
+.next-card {
+    border-radius:9px;
+    padding:7px 8px;
+    margin-bottom:5px;
+    background:#131F28;
+    border:1px solid #2C3A43;
+}
+.next-date {font-size:8px; color:#BCA56E; font-weight:760;}
+.next-title {font-size:9px; font-weight:690; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
+.next-provider {font-size:7px; color:#72889A; margin-top:1px;}
 
-.next-card {border-radius:9px; padding:7px 8px; margin-bottom:5px; background:rgba(38,38,37,.46); border:1px solid rgba(229,182,83,.18);}
-.next-date {font-size:8px; color:#e5b653; font-weight:850;}
-.next-title {font-size:9px; font-weight:760; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
-.next-provider {font-size:7px; color:#72889a; margin-top:1px;}
-
-.launch-card {height:155px; border-radius:11px; overflow:hidden; border:1px solid #1c3a53; position:relative; background:#0a1723;}
+/* ==========================================================
+   J. LAUNCH GALLERY
+   ========================================================== */
+.launch-card {
+    height:clamp(116px,13.2vh,142px);
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid #263A49;
+    position:relative;
+    background:#0B1822;
+}
 .launch-img {width:100%; height:100%; object-fit:cover; display:block;}
-.launch-placeholder {width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:40px; background:radial-gradient(circle,#173750,#08141f);}
-.launch-overlay {position:absolute; left:0; right:0; bottom:0; padding:26px 10px 8px; background:linear-gradient(transparent,rgba(2,8,14,.96) 44%);}
-.launch-name {font-size:10px; font-weight:820; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.launch-meta {font-size:8px; color:#9db1c1; margin-top:2px;}
-.launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(0,0,0,.58); color:#d6dce1; font-size:6px;}
+.launch-placeholder {width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:40px; background:#12222E;}
+.launch-overlay {position:absolute; left:0; right:0; bottom:0; padding:25px 10px 8px; background:linear-gradient(transparent,rgba(6,13,18,.94) 46%);}
+.launch-name {font-size:10px; font-weight:730; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.launch-meta {font-size:8px; color:#9AAEBB; margin-top:2px;}
+.launch-credit {position:absolute; right:5px; top:5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:4px; padding:2px 4px; background:rgba(5,10,14,.62); color:#D0D8DE; font-size:6px;}
 
-.source-warning {margin:.3rem 0 .15rem;padding:6px 9px;border-radius:8px;border:1px solid rgba(229,182,83,.35);background:rgba(229,182,83,.08);color:#d8b665;font-size:9px;letter-spacing:.06em;}
-.footerline {display:flex; justify-content:space-between; margin-top:5px; color:#40596d; font-size:7px; letter-spacing:.06em;}
+/* ==========================================================
+   K. WARNINGS + FOOTER
+   ========================================================== */
+.source-warning {
+    margin:.3rem 0 .15rem;
+    padding:5px 8px;
+    border-radius:7px;
+    background:#2A2418;
+    border:1px solid #574C31;
+    color:#CDBD92;
+    font-size:8px;
+}
+.footerline {display:flex; justify-content:space-between; margin-top:5px; color:#40596D; font-size:7px; letter-spacing:.06em;}
 
+/* 16:9 monitor tuning */
 @media(max-width:1400px){
-  .panel{min-height:320px;}
-  .actor-card{min-height:85px;}
-  .launch-card{height:138px;}
+  .actor-card{min-height:104px;}
+  .launch-card{height:120px;}
 }
 </style>
 """,
@@ -626,21 +1107,55 @@ def section_header(title, note=""):
     )
 
 
-def render_actor_card(actor, launches24, launches7, logo=None, data_ok=True):
-    colour = ACTOR_COLOURS[actor]
-    value24 = launches24 if data_ok else "—"
-    value7 = launches7 if data_ok else "—"
-    if logo:
-        logo_html = f'<img class="actor-mainlogo" src="{esc(logo)}" alt="{esc(actor)}">'
+def _display_object_total(known, unknown, estimated=False):
+    if unknown:
+        text = f"≥{known}" if known else "?"
     else:
-        code = {"EUROPE":"EU","USA":"US","CHINA":"CN","RUSSIA":"RU","OTHER":"🌍"}[actor]
-        logo_html = f'<div class="actor-mainfallback">{code}</div>'
+        text = str(known)
+    if estimated and text != "?":
+        text += "*"
+    return text
+
+
+def render_actor_card(actor, launches24, launches7, obj24, obj7, logo=None, data_ok=True):
+    """
+    LOCKED DESIGN RULE FOR TOP CARDS:
+    - Large value = LAST 7 DAYS
+    - Small value underneath = LAST 24 HOURS
+    - Always show a flag / globe marker
+    - Show both LAUNCHES and NEW OBJECTS
+    """
+    colour = ACTOR_COLOURS[actor]
+    flag = ACTOR_FLAGS[actor]
+
+    l24 = launches24 if data_ok else "—"
+    l7 = launches7 if data_ok else "—"
+    o24 = obj24 if data_ok else "—"
+    o7 = obj7 if data_ok else "—"
+
     st.markdown(
         f"""
-        <div class="actor-card" style="--accent:{colour};border-top:3px solid {colour};">
-          <div class="actor-topline"><div class="actor-name">{actor}</div>{logo_html}</div>
-          <div class="actor-big">{value24}</div>
-          <div class="actor-small">LAUNCHES · 24H<br><strong>{value7}</strong> · LAST 7 DAYS</div>
+        <div class="actor-card" style="--accent:{colour};">
+          <div class="actor-topline">
+            <div class="actor-name">{actor}</div>
+            <div class="actor-flag" aria-label="{actor} flag">{flag}</div>
+          </div>
+
+          <div class="actor-metrics">
+            <div class="actor-metric">
+              <div class="actor-metric-label">LAUNCHES</div>
+              <div class="actor-big">{l7}</div>
+              <div class="actor-seven-label">LAST 7 DAYS</div>
+              <div class="actor-24h"><strong>{l24}</strong> · LAST 24H</div>
+            </div>
+
+            <div class="actor-metric">
+              <div class="actor-metric-label">NEW OBJECTS</div>
+              <div class="actor-big">{o7}</div>
+              <div class="actor-seven-label">LAST 7 DAYS</div>
+              <div class="actor-24h"><strong>{o24}</strong> · LAST 24H</div>
+            </div>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -718,7 +1233,26 @@ def render_europe_actor_table(recent, upcoming):
         """,
         unsafe_allow_html=True,
     )
-    st.caption("* estimated from an explicit mission payload count when a launch designator is not yet available · ? = not yet resolved")
+    st.markdown('<div style="font-size:7px;color:#526b7e;margin-top:4px">* estimated minimum from mission data when SATCAT is not yet available · ? = catalogue not yet resolved</div>', unsafe_allow_html=True)
+
+
+def render_news_ticker(items):
+    if not items:
+        st.markdown('<div class="news-ticker"><div class="news-track"><div class="news-set"><span class="news-item"><span class="news-source">NEWS</span> Feed temporarily unavailable · automatic retry every 15 minutes</span></div></div></div>', unsafe_allow_html=True)
+        return
+
+    parts = []
+    for item in items[:8]:
+        title = esc(item.get("title"))
+        source = esc(item.get("source"))
+        link = item.get("link") or ""
+        if link:
+            title_html = f'<a href="{esc(link)}" target="_blank" style="color:inherit;text-decoration:none">{title}</a>'
+        else:
+            title_html = title
+        parts.append(f'<span class="news-item"><span class="news-source">{source}</span>{title_html}</span><span class="news-dot">◆</span>')
+    one_set = ''.join(parts)
+    st.markdown(f'<div class="news-ticker"><div class="news-track"><div class="news-set">{one_set}</div><div class="news-set" aria-hidden="true">{one_set}</div></div></div>', unsafe_allow_html=True)
 
 
 def orbit_visual(recent):
@@ -730,41 +1264,38 @@ def orbit_visual(recent):
     # Centre=(210,145), radii: LEO=48, MEO=88, GEO=128.
     svg = f"""
     <html><head><style>
-      body{{margin:0;background:transparent;color:#eaf3fa;font-family:Inter,Segoe UI,Arial,sans-serif;}}
-      .wrap{{height:282px;border-radius:12px;background:radial-gradient(circle at center,rgba(18,47,69,.48),rgba(5,15,24,.0) 65%);position:relative;}}
+      body{{margin:0;background:transparent;color:#EDF2F5;font-family:Inter,Segoe UI,Arial,sans-serif;}}
+      .wrap{{height:282px;border-radius:12px;background:#0D1B26;position:relative;border:1px solid #213442;}}
       svg{{width:100%;height:240px;display:block;}}
-      .ring{{fill:none;stroke-width:1.5;}}
-      .label{{font-size:10px;font-weight:800;letter-spacing:1px;}}
-      .count{{font-size:15px;font-weight:900;}}
-      .earth{{fill:url(#earthGrad);stroke:#4783a7;stroke-width:1.2;}}
-      .minor{{font-size:8px;fill:#6f879b;}}
-      .legend{{display:flex;justify-content:center;gap:22px;font-size:9px;color:#7890a4;margin-top:-7px;}}
-      .dot{{filter:drop-shadow(0 0 5px currentColor);}}
+      .ring{{fill:none;stroke-width:1.35;}}
+      .label{{font-size:10px;font-weight:760;letter-spacing:1px;}}
+      .count{{font-size:15px;font-weight:760;}}
+      .earth{{fill:#17384B;stroke:#577B91;stroke-width:1.1;}}
+      .minor{{font-size:8px;fill:#6F8596;}}
+      .legend{{display:flex;justify-content:center;gap:22px;font-size:9px;color:#7890A0;margin-top:-7px;}}
+      .dot{{filter:none;}}
     </style></head><body>
       <div class="wrap">
       <svg viewBox="0 0 420 250" role="img" aria-label="LEO MEO GEO orbital activity">
-        <defs>
-          <radialGradient id="earthGrad"><stop offset="0%" stop-color="#1d6b93"/><stop offset="100%" stop-color="#0b2a43"/></radialGradient>
-        </defs>
-        <circle cx="210" cy="125" r="128" class="ring" stroke="#d4a747" opacity=".50"/>
-        <circle cx="210" cy="125" r="88" class="ring" stroke="#45d4b1" opacity=".58"/>
-        <circle cx="210" cy="125" r="48" class="ring" stroke="#24b7ed" opacity=".70"/>
+        <circle cx="210" cy="125" r="128" class="ring" stroke="#B99C62" opacity=".60"/>
+        <circle cx="210" cy="125" r="88" class="ring" stroke="#6EAF9B" opacity=".66"/>
+        <circle cx="210" cy="125" r="48" class="ring" stroke="#5FA7D8" opacity=".75"/>
         <circle cx="210" cy="125" r="27" class="earth"/>
         <text x="210" y="129" text-anchor="middle" fill="#e7f4fc" font-size="9" font-weight="850">EARTH</text>
 
         <!-- LEO marker, angle 140°, radius 48 -->
-        <circle cx="173.2" cy="155.9" r="5" fill="#24b7ed" class="dot" style="color:#24b7ed"/>
-        <text x="154" y="170" text-anchor="middle" fill="#61cef4" class="label">LEO</text>
+        <circle cx="173.2" cy="155.9" r="5" fill="#5FA7D8" class="dot"/>
+        <text x="154" y="170" text-anchor="middle" fill="#8FB9D0" class="label">LEO</text>
         <text x="154" y="184" text-anchor="middle" fill="#ffffff" class="count">{counts['LEO']}</text>
 
         <!-- MEO marker, angle -42°, radius 88 -->
-        <circle cx="275.4" cy="66.1" r="5" fill="#45d4b1" class="dot" style="color:#45d4b1"/>
-        <text x="294" y="57" text-anchor="middle" fill="#6ee0c4" class="label">MEO</text>
+        <circle cx="275.4" cy="66.1" r="5" fill="#6EAF9B" class="dot"/>
+        <text x="294" y="57" text-anchor="middle" fill="#91C7B6" class="label">MEO</text>
         <text x="294" y="71" text-anchor="middle" fill="#ffffff" class="count">{counts['MEO']}</text>
 
         <!-- GEO marker, angle 18°, radius 128 -->
-        <circle cx="331.7" cy="164.6" r="5" fill="#d4a747" class="dot" style="color:#d4a747"/>
-        <text x="353" y="165" text-anchor="middle" fill="#e5bd68" class="label">GEO</text>
+        <circle cx="331.7" cy="164.6" r="5" fill="#B99C62" class="dot"/>
+        <text x="353" y="165" text-anchor="middle" fill="#C8B17B" class="label">GEO</text>
         <text x="353" y="179" text-anchor="middle" fill="#ffffff" class="count">{counts['GEO']}</text>
 
         <text x="210" y="235" text-anchor="middle" class="minor">launch destination / mission orbit · last 7 days</text>
@@ -785,11 +1316,13 @@ def render_changes(recent, limit=6):
         colour = ACTOR_COLOURS[actor]
         d = parse_dt(launch.get("net"))
         when = d.astimezone(LOCAL_TZ).strftime("%d %b · %H:%M") if d else ""
+        count, source = object_count_for_launch(launch)
+        obj = "? obj" if count is None else f"+{count}{'*' if source == 'estimated' else ''} obj"
         st.markdown(
             f"""
             <div class="change-row" style="--accent:{colour}">
               <div class="change-line"></div>
-              <div><div class="change-name">{esc(launch.get('name'))}</div><div class="change-meta">{actor} · {esc(launch_provider_name(launch))} · {when}</div></div>
+              <div><div class="change-name">{esc(launch.get('name'))}</div><div class="change-meta">{actor} · {esc(launch_provider_name(launch))} · {when} · {obj}</div></div>
               <div class="change-orbit">{orbit_group(launch)}</div>
             </div>
             """,
@@ -853,7 +1386,12 @@ def render_dashboard():
     recent, recent_ok = get_recent_launches(7)
     upcoming, upcoming_ok = get_upcoming_launches(30)
     ytd, ytd_ok = get_ytd_launches()
+    news, news_ok = get_news()
     now = datetime.now(LOCAL_TZ)
+
+    # Warm SATCAT counts in a small parallel pool. Subsequent render calls hit cache.
+    if recent:
+        prefetch_object_catalogue(recent)
 
     # Primary live status is launch activity. Catalogue/YTD are secondary feeds.
     status = "LIVE" if recent_ok and upcoming_ok else "PARTIAL DATA"
@@ -869,20 +1407,44 @@ def render_dashboard():
         unsafe_allow_html=True,
     )
 
+    render_news_ticker(news)
+
     if not recent_ok or not upcoming_ok:
         st.markdown('<div class="source-warning">Launch Library is temporarily unavailable. Values are shown as — and the dashboard will retry automatically; no failed response is cached.</div>', unsafe_allow_html=True)
 
     # -------------------- Major actors --------------------
-    section_header("NEW EVENTS BY MAJOR ACTOR", "AUTO · ORBITAL LAUNCH ACTIVITY · 24H / 7D")
+    section_header("NEW EVENTS BY MAJOR ACTOR", "AUTO · LAUNCHES + NEW ORBITAL OBJECTS · BIG = 7D · SMALL = 24H")
     now_utc = datetime.now(timezone.utc)
     counts7 = defaultdict(int)
     counts24 = defaultdict(int)
+    obj7_known = defaultdict(int)
+    obj24_known = defaultdict(int)
+    obj7_unknown = defaultdict(int)
+    obj24_unknown = defaultdict(int)
+    obj7_est = defaultdict(bool)
+    obj24_est = defaultdict(bool)
+
     for launch in recent:
         actor = major_actor(launch)
         counts7[actor] += 1
         d = parse_dt(launch.get("net"))
-        if d and d >= now_utc - timedelta(hours=24):
+        is24 = bool(d and d >= now_utc - timedelta(hours=24))
+        if is24:
             counts24[actor] += 1
+
+        count, source = object_count_for_launch(launch)
+        if count is None:
+            obj7_unknown[actor] += 1
+            if is24:
+                obj24_unknown[actor] += 1
+        else:
+            obj7_known[actor] += count
+            if source == "estimated":
+                obj7_est[actor] = True
+            if is24:
+                obj24_known[actor] += count
+                if source == "estimated":
+                    obj24_est[actor] = True
 
     actor_logos = {}
     for launch in recent:
@@ -895,7 +1457,9 @@ def render_dashboard():
     cols = st.columns(5, gap="small")
     for col, actor in zip(cols, ["EUROPE", "USA", "CHINA", "RUSSIA", "OTHER"]):
         with col:
-            render_actor_card(actor, counts24[actor], counts7[actor], actor_logos.get(actor), recent_ok)
+            o24 = _display_object_total(obj24_known[actor], obj24_unknown[actor], obj24_est[actor])
+            o7 = _display_object_total(obj7_known[actor], obj7_unknown[actor], obj7_est[actor])
+            render_actor_card(actor, counts24[actor], counts7[actor], o24, o7, actor_logos.get(actor), recent_ok)
 
     # -------------------- Main area --------------------
     left, middle, right = st.columns([1.12, 1.05, .83], gap="small")
@@ -945,7 +1509,7 @@ def render_dashboard():
                 st.markdown('<div class="launch-card"><div class="launch-placeholder">🛰️</div></div>', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK</span><span>auto retry · launch refresh 15 min · catalogue cache 2–6 h</span></div>',
+        '<div class="footerline"><span>AUTO SOURCES · LAUNCH LIBRARY 2 · CELESTRAK SATCAT · ESA / EUSPA / JPL RSS</span><span>16:9 wall display · auto retry · launch/news 15 min · catalogue cache 6 h</span></div>',
         unsafe_allow_html=True,
     )
 
