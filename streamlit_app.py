@@ -14,7 +14,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.6 · NORDIC
+# SPACE UPDATE v0.6.1 · NORDIC
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -67,6 +67,15 @@ ACTOR_FLAGS = {
     "CHINA": "🇨🇳",
     "RUSSIA": "🇷🇺",
     "OTHER": "🌍",
+}
+
+# Use actual SVG flags in the dashboard instead of relying on OS emoji rendering.
+# Windows often renders flag emoji as the two-letter regional code (EU/US/CN/RU).
+ACTOR_FLAG_URLS = {
+    "EUROPE": "https://flagcdn.com/eu.svg",
+    "USA": "https://flagcdn.com/us.svg",
+    "CHINA": "https://flagcdn.com/cn.svg",
+    "RUSSIA": "https://flagcdn.com/ru.svg",
 }
 
 # Fixed European launch actors we always want visible, even when their count is zero.
@@ -720,13 +729,13 @@ html, body, [class*="css"] {
 }
 .hero-sub {
     font-size:clamp(9px,.68vw,13px);
-    color:#73899A;
+    color:#8FA2B1;
     letter-spacing:.10em;
     margin-top:.28rem;
 }
 .hero-time {
     text-align:right;
-    color:#6F8596;
+    color:#8397A6;
     font-size:9px;
     letter-spacing:.08em;
 }
@@ -819,8 +828,8 @@ html, body, [class*="css"] {
     border-radius:14px;
     padding:10px 12px 9px;
     min-height:112px;
-    background:#101E2A;
-    border:1px solid #263948;
+    background:#11212D;
+    border:1px solid #304553;
     border-top:3px solid var(--accent);
     overflow:hidden;
     position:relative;
@@ -847,9 +856,19 @@ html, body, [class*="css"] {
     align-items:center;
     justify-content:center;
     background:#142431;
-    border:1px solid #2A3E4D;
+    border:1px solid #324957;
     font-size:18px;
     line-height:1;
+    overflow:hidden;
+}
+.actor-flag img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+}
+.actor-flag.globe {
+    font-size:18px;
 }
 .actor-metrics {
     display:grid;
@@ -1122,44 +1141,40 @@ def render_actor_card(actor, launches24, launches7, obj24, obj7, logo=None, data
     LOCKED DESIGN RULE FOR TOP CARDS:
     - Large value = LAST 7 DAYS
     - Small value underneath = LAST 24 HOURS
-    - Always show a flag / globe marker
+    - Always show a real flag / globe marker
     - Show both LAUNCHES and NEW OBJECTS
+
+    IMPORTANT: Keep this HTML compact. Blank lines inside nested raw HTML blocks can
+    make Streamlit/Markdown terminate the HTML block and render the remainder as text.
     """
     colour = ACTOR_COLOURS[actor]
-    flag = ACTOR_FLAGS[actor]
 
     l24 = launches24 if data_ok else "—"
     l7 = launches7 if data_ok else "—"
     o24 = obj24 if data_ok else "—"
     o7 = obj7 if data_ok else "—"
 
-    st.markdown(
-        f"""
-        <div class="actor-card" style="--accent:{colour};">
-          <div class="actor-topline">
-            <div class="actor-name">{actor}</div>
-            <div class="actor-flag" aria-label="{actor} flag">{flag}</div>
-          </div>
+    if actor in ACTOR_FLAG_URLS:
+        flag_html = f'<img src="{ACTOR_FLAG_URLS[actor]}" alt="{actor} flag">'
+        flag_class = "actor-flag"
+    else:
+        flag_html = "🌍"
+        flag_class = "actor-flag globe"
 
-          <div class="actor-metrics">
-            <div class="actor-metric">
-              <div class="actor-metric-label">LAUNCHES</div>
-              <div class="actor-big">{l7}</div>
-              <div class="actor-seven-label">LAST 7 DAYS</div>
-              <div class="actor-24h"><strong>{l24}</strong> · LAST 24H</div>
-            </div>
-
-            <div class="actor-metric">
-              <div class="actor-metric-label">NEW OBJECTS</div>
-              <div class="actor-big">{o7}</div>
-              <div class="actor-seven-label">LAST 7 DAYS</div>
-              <div class="actor-24h"><strong>{o24}</strong> · LAST 24H</div>
-            </div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    card_html = (
+        f'<div class="actor-card" style="--accent:{colour};">'
+        f'<div class="actor-topline"><div class="actor-name">{actor}</div>'
+        f'<div class="{flag_class}" aria-label="{actor} flag">{flag_html}</div></div>'
+        f'<div class="actor-metrics">'
+        f'<div class="actor-metric"><div class="actor-metric-label">LAUNCHES</div>'
+        f'<div class="actor-big">{l7}</div><div class="actor-seven-label">LAST 7 DAYS</div>'
+        f'<div class="actor-24h"><strong>{l24}</strong> · LAST 24H</div></div>'
+        f'<div class="actor-metric"><div class="actor-metric-label">NEW OBJECTS</div>'
+        f'<div class="actor-big">{o7}</div><div class="actor-seven-label">LAST 7 DAYS</div>'
+        f'<div class="actor-24h"><strong>{o24}</strong> · LAST 24H</div></div>'
+        f'</div></div>'
     )
+    st.markdown(card_html, unsafe_allow_html=True)
 
 
 def render_capability_card(item):
