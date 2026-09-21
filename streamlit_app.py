@@ -16,7 +16,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.5 · NORDIC CONTRAST · COUNTERSPACE CAPABILITY WATCH
+# SPACE UPDATE v0.8.6 · NORDIC CONTRAST · COUNTERSPACE LEFT + EXPANDED LAUNCHES
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -1385,20 +1385,20 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
    ---------------------------------------------------------- */
 .next-v08 {
     display:grid;
-    grid-template-columns:58px 1fr;
-    gap:7px;
-    padding:4px 0;
+    grid-template-columns:66px 1fr;
+    gap:9px;
+    padding:6px 0;
     border-bottom:1px solid #E0E7E9;
 }
 .next-v08:last-child {border-bottom:none;}
-.next-when {color:#947536;font-size:10px;font-weight:820;}
+.next-when {color:#947536;font-size:11px;font-weight:820;}
 .next-tminus {color:#87999F;font-size:8px;margin-top:2px;}
 .next-name {
-    color:#1D3139;font-size:10px;font-weight:780;line-height:1.15;
+    color:#1D3139;font-size:11px;font-weight:780;line-height:1.18;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .next-spaceport {
-    color:#526E79;font-size:9px;margin-top:1px;
+    color:#526E79;font-size:9px;margin-top:2px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .next-meta {color:#84969D;font-size:7px;margin-top:0;}
@@ -1445,7 +1445,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     background:#FCF8F7;
 }
 .counter-image {
-    height:116px;
+    height:150px;
     position:relative;
     overflow:hidden;
     background:
@@ -1495,7 +1495,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     font-size:7px;
 }
 .counter-no-image {
-    height:116px;
+    height:150px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -2365,7 +2365,7 @@ def featured_launch_slideshow_v08(recent):
     html_blob = f"""
     <html><head><style>
       body{{margin:0;background:transparent;font-family:Inter,Segoe UI,Arial,sans-serif;}}
-      .frame{{height:176px;border:1px solid #C6D3D7;border-radius:9px;overflow:hidden;position:relative;background:#D7E0E2;}}
+      .frame{{height:242px;border:1px solid #C6D3D7;border-radius:9px;overflow:hidden;position:relative;background:#D7E0E2;}}
       .slide{{position:absolute;inset:0;opacity:0;animation:fade {total_duration}s linear infinite;overflow:hidden;}}
       .slide .fg{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;}}
       .shade{{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.00) 42%,rgba(9,22,28,.80) 100%);}}
@@ -2381,7 +2381,7 @@ def featured_launch_slideshow_v08(recent):
       <div class="frame">{"".join(slides)}</div>
     </body></html>
     """
-    components.html(html_blob, height=178, scrolling=False)
+    components.html(html_blob, height=244, scrolling=False)
 
 
 
@@ -2966,7 +2966,7 @@ def render_dashboard():
     # --------------------------------------------------------
     # MAIN INFORMATION AREA
     # --------------------------------------------------------
-    left, middle, right = st.columns([1.02, 1.22, .84], gap="small")
+    left, middle, right = st.columns([1.02, 1.14, .94], gap="small")
 
     with left:
         with st.container(border=True):
@@ -2978,6 +2978,9 @@ def render_dashboard():
             render_europe_panel_v08(
                 recent, upcoming, ytd if ytd_ok else None
             )
+
+        with st.container(border=True):
+            render_counterspace_watch(news)
 
     with middle:
         with st.container(border=True):
@@ -2999,19 +3002,17 @@ def render_dashboard():
         with st.container(border=True):
             raw_html(
                 '<div class="panel-heading"><div class="panel-title">NEXT LAUNCHES</div>'
-                '<div class="panel-note">TOP 3 · SPACEPORT</div></div>'
+                '<div class="panel-note">TOP 4 · SPACEPORT</div></div>'
             )
-            render_upcoming_v08(upcoming, limit=3)
+            render_upcoming_v08(upcoming, limit=4)
 
             raw_html('<div class="featured-label">FEATURED LAUNCH</div>')
             featured_launch_slideshow_v08(recent)
 
-            render_counterspace_watch(news)
-
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = CAPABILITY WATCH · OPEN SOURCE · 30D → 90D</span>'
-        '<span>v0.8.5 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = CAPABILITY WATCH · LEFT PANEL · OPEN SOURCE · 30D → 90D</span>'
+        '<span>v0.8.6 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
