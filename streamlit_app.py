@@ -17,7 +17,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.9 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.0 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -65,6 +65,42 @@ COUNTERSPACE_FEEDS = [
     ("Breaking Defense", "https://feeds.feedburner.com/BreakingDefense", 1),
     ("Air & Space Forces", "https://www.airandspaceforces.com/feed/", 1),
     ("Spaceflight Now", "https://spaceflightnow.com/feed/", 2),
+]
+
+# Query-based RSS fallback. No API key is required.
+# This makes Counterspace Capability Watch resilient when a publisher's
+# own RSS feed is shallow, blocked, or contains too few relevant items.
+COUNTERSPACE_QUERY_FEEDS = [
+    (
+        "Search: counterspace",
+        "https://news.google.com/rss/search?q=%22counterspace%22+OR+%22space+control%22+weapon+capability+deployment+procurement+strategy&hl=en-US&gl=US&ceid=US:en",
+        1,
+    ),
+    (
+        "Search: ASAT",
+        "https://news.google.com/rss/search?q=%22anti-satellite%22+OR+ASAT+weapon+capability+deployment+procurement+test&hl=en-US&gl=US&ceid=US:en",
+        1,
+    ),
+    (
+        "Search: co-orbital",
+        "https://news.google.com/rss/search?q=%22co-orbital%22+OR+%22proximity+operations%22+military+satellite+capability&hl=en-US&gl=US&ceid=US:en",
+        1,
+    ),
+    (
+        "Search: space EW",
+        "https://news.google.com/rss/search?q=%22space+electronic+warfare%22+OR+%22satellite+jamming%22+military+capability+system&hl=en-US&gl=US&ceid=US:en",
+        1,
+    ),
+    (
+        "Search: space targeting",
+        "https://news.google.com/rss/search?q=%22space+domain+awareness%22+targeting+military+contract+capability&hl=en-US&gl=US&ceid=US:en",
+        2,
+    ),
+    (
+        "Search: orbital weapons",
+        "https://news.google.com/rss/search?q=%22on-orbit+weapon%22+OR+%22orbital+weapon%22+OR+%22weapons+in+orbit%22&hl=en-US&gl=US&ceid=US:en",
+        1,
+    ),
 ]
 
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
@@ -1239,7 +1275,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 }
 .eu-ref-line {
     color:#536B75;
-    font-size:9px;
+    font-size:9.5px;
     margin-top:5px;
     line-height:1.25;
 }
@@ -1249,12 +1285,12 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     padding-top:5px;
     border-top:1px solid #E0E7E9;
     color:#365B68;
-    font-size:9px;
+    font-size:9.5px;
     line-height:1.25;
 }
 .eu-ref-use b {
     color:#6A8792;
-    font-size:8px;
+    font-size:8.5px;
     letter-spacing:.06em;
 }
 .eu-commercial strong {color:#213D46;}
@@ -1269,6 +1305,31 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 .legend-dot {background:#B58B3E;}
 .legend-ring {border:2px solid #477080;}
 .legend-both {background:#668F7A;border:1px solid #477080;}
+.map-legend {
+    display:flex;
+    align-items:center;
+    gap:5px;
+    color:#72858C;
+    font-size:5px;
+    line-height:1;
+    margin-top:-1px;
+    margin-bottom:3px;
+    white-space:nowrap;
+}
+.map-legend span {
+    display:inline-flex;
+    align-items:center;
+}
+.map-legend .legend-dot,
+.map-legend .legend-ring,
+.map-legend .legend-both {
+    width:5px;
+    height:5px;
+    margin-right:2px;
+}
+.map-legend .legend-ring {
+    border-width:1px;
+}
 .orbit-strip {
     display:grid;
     grid-template-columns:repeat(3,1fr);
@@ -1308,7 +1369,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 }
 .change-v08:last-child {border-bottom:none;}
 .change-accent {
-    width:4px;height:30px;border-radius:3px;background:var(--accent);
+    width:4px;height:32px;border-radius:3px;background:var(--accent);
 }
 .change-flag {
     width:25px;height:18px;border-radius:4px;overflow:hidden;
@@ -1317,14 +1378,35 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 }
 .change-flag img {width:100%;height:100%;object-fit:cover;}
 .change-main {
-    font-size:10px;color:#20353D;font-weight:760;
+    font-size:10.5px;color:#20353D;font-weight:780;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .change-sub {
-    color:#6D828B;font-size:8px;margin-top:1px;
+    color:#6D828B;font-size:8px;margin-top:2px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.change-orbit {color:#63808B;font-size:9px;font-weight:800;}
+.change-right {
+    min-width:55px;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:3px;
+}
+.change-badge {
+    padding:3px 6px;
+    border-radius:999px;
+    background:#E8F0F2;
+    border:1px solid #C9D8DC;
+    color:#315A68;
+    font-size:9px;
+    font-weight:820;
+    white-space:nowrap;
+}
+.change-orbit {
+    color:#72878F;
+    font-size:8px;
+    font-weight:800;
+}
 
 /* ----------------------------------------------------------
    J. NEXT LAUNCHES
@@ -2112,7 +2194,7 @@ def render_europe_panel_v08(recent, upcoming, ytd):
         f'<div class="eu-ref-line"><strong>NOMINAL</strong> {EU_REFERENCE["GALILEO_NOMINAL"]}</div>'
         f'<div class="eu-ref-line"><strong>NEXT</strong> {EU_REFERENCE["GALILEO_NEXT"]} · '
         f'<strong>BUILDING</strong> {EU_REFERENCE["GALILEO_G2_BUILD"]}</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> navigation · precise timing · encrypted PRS</div>'
+        f'<div class="eu-ref-use"><b>USE</b> navigation · timing · encrypted PRS</div>'
         f'</div>'
 
         # COPERNICUS
@@ -2122,7 +2204,7 @@ def render_europe_panel_v08(recent, upcoming, ytd):
         f'<div class="eu-ref-main">{EU_REFERENCE["COPERNICUS_NOW"]}</div></div>'
         f'<div class="eu-ref-line"><strong>EXPANDING</strong> {EU_REFERENCE["COPERNICUS_EXPANSION"]}</div>'
         f'<div class="eu-ref-line"><strong>SENSORS</strong> radar · IR · hyperspectral · CO₂</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> sea ice · ship detection · land imagery · disaster mapping</div>'
+        f'<div class="eu-ref-use"><b>USE</b> sea ice · ships · land · disasters</div>'
         f'</div>'
 
         # IRIS2
@@ -2134,7 +2216,7 @@ def render_europe_panel_v08(recent, upcoming, ytd):
         f'{EU_REFERENCE["IRIS2_ORBITS"]}</div>'
         f'<div class="eu-ref-line"><strong>SERVICE</strong> first {EU_REFERENCE["IRIS2_FIRST"]} · '
         f'full {EU_REFERENCE["IRIS2_FULL"]}</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> secure government · defence · crisis connectivity</div>'
+        f'<div class="eu-ref-use"><b>USE</b> secure government · defence · crisis links</div>'
         f'</div>'
 
         # GOVSATCOM
@@ -2145,7 +2227,7 @@ def render_europe_panel_v08(recent, upcoming, ytd):
         f'<div class="eu-ref-line"><strong>LIVE</strong> since {EU_REFERENCE["GOVSATCOM_LIVE"]}</div>'
         f'<div class="eu-ref-line"><strong>POOL</strong> {EU_REFERENCE["GOVSATCOM_POOL"]} · '
         f'{EU_REFERENCE["GOVSATCOM_IRIS"]}</div>'
-        f'<div class="eu-ref-use"><b>ENABLES</b> pooled secure satellite capacity for government &amp; military users</div>'
+        f'<div class="eu-ref-use"><b>USE</b> secure government &amp; military SATCOM</div>'
         f'</div>'
 
         f'</div>'
@@ -2162,18 +2244,25 @@ def render_changes_v08(recent, limit=3):
         d = parse_dt(launch.get("net"))
         when = d.astimezone(LOCAL_TZ).strftime("%d %b") if d else ""
         count, source = object_count_for_launch(launch)
-        obj = (
-            "catalogue pending"
-            if count is None
-            else f'+{count}{"*" if source == "estimated" else ""} objects'
-        )
+
+        if count is None:
+            badge = "PENDING"
+        else:
+            suffix = "*" if source == "estimated" else ""
+            badge = f"+{count}{suffix} OBJ"
 
         raw_html(
             f'<div class="change-v08" style="--accent:{colour}">'
-            f'<div class="change-accent"></div>{flag_markup(actor, "change-flag")}'
-            f'<div><div class="change-main">{esc(launch.get("name"))}</div>'
-            f'<div class="change-sub">{esc(actor)} · {esc(when)} · {esc(obj)}</div></div>'
+            f'<div class="change-accent"></div>'
+            f'{flag_markup(actor, "change-flag")}'
+            f'<div>'
+            f'<div class="change-main">{esc(launch.get("name"))}</div>'
+            f'<div class="change-sub">{esc(actor)} · {esc(when)}</div>'
+            f'</div>'
+            f'<div class="change-right">'
+            f'<div class="change-badge">{esc(badge)}</div>'
             f'<div class="change-orbit">{orbit_group(launch)}</div>'
+            f'</div>'
             f'</div>'
         )
 
@@ -2534,6 +2623,13 @@ def _counterspace_archive_cached():
                 if not title:
                     continue
 
+                item_source = source
+                if source.startswith("Search:") and " - " in title:
+                    possible_title, possible_source = title.rsplit(" - ", 1)
+                    if possible_title.strip() and possible_source.strip():
+                        title = possible_title.strip()
+                        item_source = possible_source.strip()
+
                 link = _xml_text(item, {"link"})
                 if not link:
                     for child in item.iter():
@@ -2595,7 +2691,7 @@ def _counterspace_archive_cached():
                         image_url = match.group(1)
 
                 out.append({
-                    "source": source,
+                    "source": item_source,
                     "title": title,
                     "link": link,
                     "date": dt,
@@ -2610,10 +2706,11 @@ def _counterspace_archive_cached():
         return out
 
     items = []
-    with ThreadPoolExecutor(max_workers=len(COUNTERSPACE_FEEDS)) as pool:
+    feed_specs = COUNTERSPACE_FEEDS + COUNTERSPACE_QUERY_FEEDS
+    with ThreadPoolExecutor(max_workers=min(10, len(feed_specs))) as pool:
         futures = [
             pool.submit(parse_feed, source, url, priority)
-            for source, url, priority in COUNTERSPACE_FEEDS
+            for source, url, priority in feed_specs
         ]
         for future in as_completed(futures):
             try:
@@ -3314,8 +3411,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = ROTATING CAPABILITY WATCH · UP TO 10 STORIES · OPEN SOURCE</span>'
-        '<span>v0.8.9 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = ROTATING CAPABILITY WATCH · DIRECT + SEARCH RSS · UP TO 10 STORIES</span>'
+        '<span>v0.9.0 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
