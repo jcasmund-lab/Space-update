@@ -16,7 +16,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.3 · NORDIC CONTRAST · COUNTERSPACE WATCH
+# SPACE UPDATE v0.8.4 · NORDIC CONTRAST · COUNTERSPACE 30D + FULL LAUNCH IMAGE
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -1529,6 +1529,45 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     font-size:9px;
 }
 
+
+.counter-baseline {
+    margin-top:5px;
+    min-height:104px;
+    border:1px solid #D8C9C5;
+    border-radius:9px;
+    background:
+        radial-gradient(circle at 80% 22%, rgba(163,104,91,.13), transparent 24%),
+        linear-gradient(135deg,#FCF8F7,#F2ECEA);
+    padding:10px;
+}
+.counter-baseline-title {
+    color:#65483F;
+    font-size:10px;
+    font-weight:820;
+    letter-spacing:.06em;
+}
+.counter-baseline-sub {
+    color:#806B65;
+    font-size:8px;
+    margin-top:3px;
+}
+.counter-baseline-grid {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:5px;
+    margin-top:9px;
+}
+.counter-baseline-chip {
+    border:1px solid #DFCFCA;
+    border-radius:7px;
+    padding:5px 4px;
+    background:rgba(255,255,255,.62);
+    color:#674F48;
+    font-size:7px;
+    font-weight:730;
+    text-align:center;
+}
+
 /* ----------------------------------------------------------
    L. WARNINGS + FOOTER
    ---------------------------------------------------------- */
@@ -2291,7 +2330,8 @@ def featured_launch_slideshow_v08(recent):
         slides.append(
             f"""
             <div class="slide s{i}">
-              <img src="{esc(url)}" alt="{esc(launch.get("name"))}">
+              <img class="bg" src="{esc(url)}" alt="">
+              <img class="fg" src="{esc(url)}" alt="{esc(launch.get("name"))}">
               <div class="shade"></div>
               <div class="credit">{esc(credit)}</div>
               <div class="caption">
@@ -2318,10 +2358,11 @@ def featured_launch_slideshow_v08(recent):
     html_blob = f"""
     <html><head><style>
       body{{margin:0;background:transparent;font-family:Inter,Segoe UI,Arial,sans-serif;}}
-      .frame{{height:205px;border:1px solid #C6D3D7;border-radius:9px;overflow:hidden;position:relative;background:#DDE6E8;}}
-      .slide{{position:absolute;inset:0;opacity:0;animation:fade {total_duration}s linear infinite;}}
-      .slide img{{width:100%;height:100%;object-fit:cover;display:block;}}
-      .shade{{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.01) 28%,rgba(9,22,28,.86) 100%);}}
+      .frame{{height:176px;border:1px solid #C6D3D7;border-radius:9px;overflow:hidden;position:relative;background:#D7E0E2;}}
+      .slide{{position:absolute;inset:0;opacity:0;animation:fade {total_duration}s linear infinite;overflow:hidden;}}
+      .slide .bg{{position:absolute;inset:-12px;width:calc(100% + 24px);height:calc(100% + 24px);object-fit:cover;filter:blur(12px);opacity:.36;transform:scale(1.04);}}
+      .slide .fg{{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;}}
+      .shade{{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.00) 42%,rgba(9,22,28,.80) 100%);}}
       .caption{{position:absolute;left:12px;right:12px;bottom:9px;color:#F5F7F6;}}
       .cap-title{{font-size:13px;font-weight:780;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
       .cap-space{{font-size:9px;color:#E1E9E9;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
@@ -2334,7 +2375,7 @@ def featured_launch_slideshow_v08(recent):
       <div class="frame">{"".join(slides)}</div>
     </body></html>
     """
-    components.html(html_blob, height=156, scrolling=False)
+    components.html(html_blob, height=178, scrolling=False)
 
 
 
@@ -2456,14 +2497,142 @@ def article_og_image(url):
     return ""
 
 
-def get_counterspace_items(news, limit=2):
-    floor = datetime.now(timezone.utc) - timedelta(days=7)
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _counterspace_archive_cached():
+    """
+    Deeper scan of the same trusted global feeds.
+
+    The rolling ticker stays current. Counterspace Watch may look back
+    30 days when no significant item exists in the last 7 days.
+    """
+
+    def parse_feed(source, url, priority):
+        out = []
+        try:
+            xml = _request_text(url, timeout=6)
+            root = ET.fromstring(xml)
+            candidates = [
+                x for x in root.iter()
+                if x.tag.split("}")[-1].lower() in ("item", "entry")
+            ]
+
+            for item in candidates[:50]:
+                title = _xml_text(item, {"title"}).strip()
+                if not title:
+                    continue
+
+                link = _xml_text(item, {"link"})
+                if not link:
+                    for child in item.iter():
+                        if child.tag.split("}")[-1].lower() == "link":
+                            link = child.attrib.get("href", "")
+                            if link:
+                                break
+
+                raw_date = _xml_text(
+                    item, {"pubdate", "published", "updated", "date"}
+                )
+                dt = None
+                if raw_date:
+                    try:
+                        dt = parsedate_to_datetime(raw_date)
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                    except Exception:
+                        try:
+                            dt = datetime.fromisoformat(
+                                raw_date.replace("Z", "+00:00")
+                            )
+                        except Exception:
+                            dt = None
+
+                description = _xml_text(
+                    item, {"description", "summary", "content", "encoded"}
+                )
+
+                image_url = ""
+                for child in item.iter():
+                    tag = child.tag.split("}")[-1].lower()
+                    if tag in ("content", "thumbnail", "enclosure"):
+                        candidate = (
+                            child.attrib.get("url")
+                            or child.attrib.get("href")
+                            or ""
+                        )
+                        media_type = (child.attrib.get("type") or "").lower()
+                        if candidate and (
+                            media_type.startswith("image/")
+                            or re.search(
+                                r"\.(?:jpg|jpeg|png|webp)(?:\?|$)",
+                                candidate,
+                                re.I,
+                            )
+                            or tag in ("thumbnail", "content")
+                        ):
+                            image_url = candidate
+                            break
+
+                if not image_url and description:
+                    match = re.search(
+                        r"<img[^>]+src=[\"']([^\"']+)[\"']",
+                        description,
+                        flags=re.I,
+                    )
+                    if match:
+                        image_url = match.group(1)
+
+                out.append({
+                    "source": source,
+                    "title": title,
+                    "link": link,
+                    "date": dt,
+                    "priority": priority,
+                    "summary": description,
+                    "image": image_url,
+                })
+
+        except Exception:
+            return []
+
+        return out
+
+    items = []
+    with ThreadPoolExecutor(max_workers=len(NEWS_FEEDS)) as pool:
+        futures = [
+            pool.submit(parse_feed, source, url, priority)
+            for source, url, priority in NEWS_FEEDS
+        ]
+        for future in as_completed(futures):
+            try:
+                items.extend(future.result())
+            except Exception:
+                pass
+
+    seen = set()
+    unique = []
+    for item in items:
+        key = re.sub(r"\W+", "", item["title"].lower())[:150]
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(item)
+
+    return unique
+
+
+def _select_counterspace(pool, days=None, limit=2):
+    floor = (
+        datetime.now(timezone.utc) - timedelta(days=days)
+        if days is not None
+        else None
+    )
     candidates = []
 
-    for item in news:
+    for item in pool:
         dt = item.get("date")
-        if dt and dt.astimezone(timezone.utc) < floor:
-            continue
+        if floor is not None and dt:
+            if dt.astimezone(timezone.utc) < floor:
+                continue
 
         score = counterspace_score(item)
         if score < 7:
@@ -2476,19 +2645,49 @@ def get_counterspace_items(news, limit=2):
     candidates.sort(
         key=lambda x: (
             x.get("counterspace_score", 0),
-            x.get("date") or datetime(1970, 1, 1, tzinfo=timezone.utc),
+            x.get("date")
+            or datetime(1970, 1, 1, tzinfo=timezone.utc),
         ),
         reverse=True,
     )
+    return candidates[:limit]
 
-    chosen = candidates[:limit]
 
-    # Resolve only the primary image, and only if the feed did not supply one.
-    # This keeps the app fast.
-    if chosen and not chosen[0].get("image"):
-        chosen[0]["image"] = article_og_image(chosen[0].get("link") or "")
+def get_counterspace_items(news, limit=2):
+    """
+    Returns (items, window_label).
 
-    return chosen
+    7D -> 30D -> latest significant item -> baseline card.
+    """
+    items = _select_counterspace(news, days=7, limit=limit)
+    if items:
+        window = "7D"
+    else:
+        archive = _counterspace_archive_cached()
+
+        merged = []
+        seen = set()
+        for item in list(news) + list(archive):
+            key = re.sub(
+                r"\W+", "", str(item.get("title") or "").lower()
+            )[:150]
+            if key and key not in seen:
+                seen.add(key)
+                merged.append(item)
+
+        items = _select_counterspace(merged, days=30, limit=limit)
+        if items:
+            window = "30D"
+        else:
+            items = _select_counterspace(merged, days=None, limit=limit)
+            window = "LATEST" if items else "BASELINE"
+
+    if items and not items[0].get("image"):
+        items[0]["image"] = article_og_image(
+            items[0].get("link") or ""
+        )
+
+    return items, window
 
 
 def counterspace_type(item):
@@ -2510,21 +2709,30 @@ def counterspace_type(item):
 
 
 def render_counterspace_watch(news):
-    items = get_counterspace_items(news, limit=2)
+    items, window = get_counterspace_items(news, limit=2)
 
     raw_html(
         '<div class="counter-head">'
         '<div class="counter-title">COUNTERSPACE WATCH</div>'
-        '<div class="counter-period">OPEN SOURCE · 7D</div>'
+        f'<div class="counter-period">OPEN SOURCE · {esc(window)}</div>'
         '</div>'
     )
 
     if not items:
         raw_html(
-            '<div class="counter-empty">'
-            'No significant counterspace event identified in the selected '
-            'open-source feeds during the last 7 days.'
+            '<div class="counter-baseline">'
+            '<div class="counter-baseline-title">'
+            'NO SIGNIFICANT EVENT IDENTIFIED · 30D'
             '</div>'
+            '<div class="counter-baseline-sub">Persistent watch areas</div>'
+            '<div class="counter-baseline-grid">'
+            '<div class="counter-baseline-chip">EW / JAMMING</div>'
+            '<div class="counter-baseline-chip">GNSS SPOOFING</div>'
+            '<div class="counter-baseline-chip">CO-ORBITAL / RPO</div>'
+            '<div class="counter-baseline-chip">ASAT</div>'
+            '<div class="counter-baseline-chip">CYBER</div>'
+            '<div class="counter-baseline-chip">DIRECTED ENERGY</div>'
+            '</div></div>'
         )
         return
 
@@ -2566,20 +2774,22 @@ def render_counterspace_watch(news):
             f'<div class="counter-second">'
             f'<span class="counter-dot"></span>'
             f'<div class="counter-second-title">'
-            f'{esc(counterspace_type(item))} · {esc(item.get("title"))}'
+            f'{esc(counterspace_type(item))} · '
+            f'{esc(item.get("title"))}'
             f'</div></div>'
         )
 
-    # The whole card is clickable when a source URL is available.
     if link:
         content = (
             f'<a href="{link}" target="_blank" '
-            f'style="text-decoration:none;color:inherit">{visual}{second}</a>'
+            f'style="text-decoration:none;color:inherit">'
+            f'{visual}{second}</a>'
         )
     else:
         content = visual + second
 
     raw_html(f'<div class="counter-card">{content}</div>')
+
 
 
 # ============================================================
@@ -2717,8 +2927,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = OPEN-SOURCE WATCH</span>'
-        '<span>v0.8.3 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = OPEN-SOURCE WATCH · 7D → 30D</span>'
+        '<span>v0.8.4 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
