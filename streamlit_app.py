@@ -17,7 +17,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.7.3 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.8.8 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -2629,13 +2629,18 @@ CURATED_COUNTERSPACE_FALLBACK = {
     "counterspace_score": 100,
 }
 
-def get_counterspace_items(news, limit=2):
+def get_counterspace_items(news, limit=4):
     """
-    Capability-watch priority:
-      1) significant capability development within 30 days
-      2) within 90 days
-      3) latest significant development available in capability feeds
-      4) curated, dated fallback (never an unrelated counterspace event)
+    Build a rotating Counterspace Capability Watch.
+
+    Priority:
+      1) capability developments within 30 days
+      2) fill remaining slots from 90 days
+      3) fill remaining slots with latest significant developments
+      4) dated curated fallback if the feeds contain nothing suitable
+
+    The intent is to keep several useful stories rotating without letting
+    routine interference/PNT stories dominate the panel.
     """
     archive = _counterspace_archive_cached()
 
@@ -2649,31 +2654,67 @@ def get_counterspace_items(news, limit=2):
             seen.add(key)
             merged.append(item)
 
-    items = _select_counterspace(merged, days=30, limit=limit)
-    if items:
-        window = "30D"
-    else:
-        items = _select_counterspace(merged, days=90, limit=limit)
-        if items:
-            window = "90D"
-        else:
-            items = _select_counterspace(merged, days=None, limit=limit)
-            if items:
-                window = "LATEST"
-            else:
-                items = [dict(CURATED_COUNTERSPACE_FALLBACK)]
-                window = "LATEST KNOWN"
+    chosen = []
+    chosen_keys = set()
 
-    # Best-effort story-specific hero image.
-    # Prefer the article's own OG image over a generic RSS thumbnail.
-    if items:
-        article_image = article_og_image(
-            items[0].get("link") or ""
-        )
-        if article_image:
-            items[0]["image"] = article_image
+    def add_from(pool):
+        for item in pool:
+            key = re.sub(
+                r"\W+", "", str(item.get("title") or "").lower()
+            )[:150]
+            if key and key not in chosen_keys:
+                chosen.append(dict(item))
+                chosen_keys.add(key)
+            if len(chosen) >= limit:
+                break
 
-    return items, window
+    within_30 = _select_counterspace(merged, days=30, limit=max(limit * 2, 8))
+    add_from(within_30)
+
+    window = "30D"
+
+    if len(chosen) < limit:
+        within_90 = _select_counterspace(merged, days=90, limit=max(limit * 3, 12))
+        before = len(chosen)
+        add_from(within_90)
+        if len(chosen) > before:
+            window = "30–90D"
+
+    if len(chosen) < limit:
+        latest = _select_counterspace(merged, days=None, limit=max(limit * 4, 16))
+        before = len(chosen)
+        add_from(latest)
+        if len(chosen) > before:
+            window = "LATEST"
+
+    if not chosen:
+        chosen = [dict(CURATED_COUNTERSPACE_FALLBACK)]
+        window = "LATEST KNOWN"
+
+    # Try to obtain story-specific OG images for slides that do not already
+    # have an RSS image. Requests run in parallel and fail soft.
+    missing = [
+        (idx, item.get("link") or "")
+        for idx, item in enumerate(chosen[:limit])
+        if not item.get("image") and item.get("link")
+    ]
+
+    if missing:
+        with ThreadPoolExecutor(max_workers=min(4, len(missing))) as pool:
+            futures = {
+                pool.submit(article_og_image, link): idx
+                for idx, link in missing
+            }
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    image = future.result()
+                    if image:
+                        chosen[idx]["image"] = image
+                except Exception:
+                    pass
+
+    return chosen[:limit], window
 
 
 def counterspace_type(item):
@@ -2739,7 +2780,7 @@ def counterspace_fallback_visual(event_type, title):
 
 
 def render_counterspace_watch(news):
-    items, window = get_counterspace_items(news, limit=3)
+    items, window = get_counterspace_items(news, limit=4)
 
     raw_html(
         '<div class="counter-head">'
@@ -2766,56 +2807,206 @@ def render_counterspace_watch(news):
         )
         return
 
-    primary = items[0]
-    image = primary.get("image") or ""
-    title = esc(primary.get("title"))
-    source = esc(primary.get("source"))
-    event_type = esc(counterspace_type(primary))
-    date = primary.get("date")
-    when = (
-        date.astimezone(LOCAL_TZ).strftime("%d %b")
-        if date else ""
-    )
-    link = esc(primary.get("link") or "")
+    slides = []
+    delays = []
+    seconds_per_story = 10
+    total_duration = max(seconds_per_story, len(items) * seconds_per_story)
 
-    if image:
-        visual = (
-            f'<div class="counter-image">'
-            f'<img src="{esc(image)}" alt="{title}">'
-            f'<div class="counter-image-shade"></div>'
-            f'<div class="counter-badge">{event_type}</div>'
-            f'<div class="counter-caption">'
-            f'<div class="counter-story">{title}</div>'
-            f'<div class="counter-source">{source} · {esc(when)}</div>'
-            f'</div></div>'
+    for i, item in enumerate(items):
+        title = esc(item.get("title") or "")
+        source = esc(item.get("source") or "")
+        event_type = esc(counterspace_type(item))
+        image = item.get("image") or ""
+        link = esc(item.get("link") or "")
+
+        date = item.get("date")
+        when = (
+            date.astimezone(LOCAL_TZ).strftime("%d %b %Y")
+            if date else ""
+        )
+
+        if image:
+            media = (
+                f'<img class="cs-img" src="{esc(image)}" alt="{title}">'
+            )
+        else:
+            # Reliable internal graphic: no image API, no external dependency.
+            media = (
+                '<div class="cs-fallback">'
+                '<div class="cs-orbit cs-o1"></div>'
+                '<div class="cs-orbit cs-o2"></div>'
+                '<div class="cs-symbol">◈</div>'
+                '</div>'
+            )
+
+        slide_inner = (
+            f'{media}'
+            f'<div class="cs-shade"></div>'
+            f'<div class="cs-badge">{event_type}</div>'
+            f'<div class="cs-counter">{i + 1} / {len(items)}</div>'
+            f'<div class="cs-caption">'
+            f'<div class="cs-title">{title}</div>'
+            f'<div class="cs-source">{source} · {esc(when)}</div>'
+            f'</div>'
+        )
+
+        if link:
+            slide_inner = (
+                f'<a href="{link}" target="_blank" '
+                f'style="color:inherit;text-decoration:none">{slide_inner}</a>'
+            )
+
+        slides.append(
+            f'<div class="cs-slide cs-s{i}">{slide_inner}</div>'
+        )
+        delays.append(
+            f'.cs-s{i}{{animation-delay:{i * seconds_per_story}s;}}'
+        )
+
+    if len(items) == 1:
+        animation_rule = (
+            '.cs-slide{opacity:1 !important;animation:none !important;}'
         )
     else:
-        visual = counterspace_fallback_visual(
-            counterspace_type(primary),
-            primary.get("title") or "",
+        # Each slide is visible for almost its entire 10-second slot.
+        visible_pct = max(
+            12,
+            int(((seconds_per_story - 0.8) / total_duration) * 100),
+        )
+        fade_out_pct = min(visible_pct + 2, 98)
+        animation_rule = (
+            '@keyframes csfade{'
+            '0%{opacity:0}'
+            '1.5%{opacity:1}'
+            f'{visible_pct}%{{opacity:1}}'
+            f'{fade_out_pct}%{{opacity:0}}'
+            '100%{opacity:0}'
+            '}'
         )
 
-    secondary = ""
-    for item in items[1:3]:
-        secondary += (
-            f'<div class="counter-second">'
-            f'<span class="counter-dot"></span>'
-            f'<div class="counter-second-title">'
-            f'{esc(counterspace_type(item))} · '
-            f'{esc(item.get("title"))}'
-            f'</div></div>'
-        )
+    html_blob = f"""
+    <html>
+    <head>
+      <style>
+        html,body{{
+          margin:0;
+          padding:0;
+          background:transparent;
+          font-family:Inter,"Segoe UI",Arial,sans-serif;
+        }}
+        .cs-frame{{
+          height:228px;
+          position:relative;
+          overflow:hidden;
+          border:1px solid #D8C9C5;
+          border-radius:9px;
+          background:#E9EEEE;
+        }}
+        .cs-slide{{
+          position:absolute;
+          inset:0;
+          opacity:0;
+          animation:csfade {total_duration}s linear infinite;
+          overflow:hidden;
+        }}
+        .cs-slide a{{
+          position:absolute;
+          inset:0;
+          display:block;
+        }}
+        .cs-img{{
+          position:absolute;
+          inset:0;
+          width:100%;
+          height:100%;
+          object-fit:cover;
+          object-position:center;
+          display:block;
+        }}
+        .cs-fallback{{
+          position:absolute;
+          inset:0;
+          background:
+            radial-gradient(circle at 74% 26%,rgba(148,87,72,.18),transparent 24%),
+            linear-gradient(135deg,#DCE5E5,#F4EFED);
+        }}
+        .cs-orbit{{
+          position:absolute;
+          border:1px solid rgba(139,85,73,.28);
+          border-radius:50%;
+        }}
+        .cs-o1{{
+          width:210px;height:210px;right:-55px;top:-84px;
+        }}
+        .cs-o2{{
+          width:128px;height:128px;right:-12px;top:-42px;
+        }}
+        .cs-symbol{{
+          position:absolute;
+          right:31px;
+          top:35px;
+          color:#8B5549;
+          font-size:37px;
+        }}
+        .cs-shade{{
+          position:absolute;
+          inset:0;
+          background:
+            linear-gradient(180deg,rgba(8,18,23,.03) 32%,rgba(12,24,29,.88) 100%);
+        }}
+        .cs-badge{{
+          position:absolute;
+          top:8px;
+          left:9px;
+          padding:4px 7px;
+          border-radius:999px;
+          background:#8B5549;
+          color:#FFF8F5;
+          font-size:8px;
+          font-weight:820;
+          letter-spacing:.06em;
+        }}
+        .cs-counter{{
+          position:absolute;
+          top:9px;
+          right:10px;
+          padding:3px 6px;
+          border-radius:999px;
+          background:rgba(21,38,44,.66);
+          color:#E5EBEB;
+          font-size:7px;
+          font-weight:750;
+        }}
+        .cs-caption{{
+          position:absolute;
+          left:11px;
+          right:11px;
+          bottom:10px;
+          color:#FFFFFF;
+        }}
+        .cs-title{{
+          font-size:12px;
+          font-weight:790;
+          line-height:1.2;
+          max-height:31px;
+          overflow:hidden;
+        }}
+        .cs-source{{
+          color:#D5DEDF;
+          font-size:8px;
+          margin-top:4px;
+        }}
+        {" ".join(delays)}
+        {animation_rule}
+      </style>
+    </head>
+    <body>
+      <div class="cs-frame">{"".join(slides)}</div>
+    </body>
+    </html>
+    """
 
-    if link:
-        content = (
-            f'<a href="{link}" target="_blank" '
-            f'style="text-decoration:none;color:inherit">'
-            f'{visual}{secondary}</a>'
-        )
-    else:
-        content = visual + secondary
-
-    raw_html(f'<div class="counter-card">{content}</div>')
+    components.html(html_blob, height=230, scrolling=False)
 
 
 
@@ -2955,8 +3146,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = CAPABILITY WATCH · ARTICLE IMAGE → INTERNAL GRAPHIC · OPEN SOURCE</span>'
-        '<span>v0.8.7.3 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = ROTATING CAPABILITY WATCH · UP TO 4 STORIES · OPEN SOURCE</span>'
+        '<span>v0.8.8 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
