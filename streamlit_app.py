@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.9.4 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.5 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -635,10 +635,10 @@ def _news_cached():
         return out
 
     items = []
-    with ThreadPoolExecutor(max_workers=len(COUNTERSPACE_FEEDS)) as pool:
+    with ThreadPoolExecutor(max_workers=len(NEWS_FEEDS)) as pool:
         futures = [
             pool.submit(parse_feed, source, url, priority)
-            for source, url, priority in COUNTERSPACE_FEEDS
+            for source, url, priority in NEWS_FEEDS
         ]
         for future in as_completed(futures):
             try:
@@ -3656,7 +3656,7 @@ def render_dashboard():
     raw_html(
         '<div class="footerline">'
         '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · STRICT SPACE-TITLE FILTER · GENERIC IMAGES SUPPRESSED</span>'
-        '<span>v0.9.4 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>v0.9.5 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
