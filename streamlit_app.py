@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
 
@@ -17,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.9.0 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.1 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -71,37 +72,28 @@ COUNTERSPACE_FEEDS = [
 # This makes Counterspace Capability Watch resilient when a publisher's
 # own RSS feed is shallow, blocked, or contains too few relevant items.
 COUNTERSPACE_QUERY_FEEDS = [
-    (
-        "Search: counterspace",
-        "https://news.google.com/rss/search?q=%22counterspace%22+OR+%22space+control%22+weapon+capability+deployment+procurement+strategy&hl=en-US&gl=US&ceid=US:en",
-        1,
-    ),
-    (
-        "Search: ASAT",
-        "https://news.google.com/rss/search?q=%22anti-satellite%22+OR+ASAT+weapon+capability+deployment+procurement+test&hl=en-US&gl=US&ceid=US:en",
-        1,
-    ),
-    (
-        "Search: co-orbital",
-        "https://news.google.com/rss/search?q=%22co-orbital%22+OR+%22proximity+operations%22+military+satellite+capability&hl=en-US&gl=US&ceid=US:en",
-        1,
-    ),
-    (
-        "Search: space EW",
-        "https://news.google.com/rss/search?q=%22space+electronic+warfare%22+OR+%22satellite+jamming%22+military+capability+system&hl=en-US&gl=US&ceid=US:en",
-        1,
-    ),
-    (
-        "Search: space targeting",
-        "https://news.google.com/rss/search?q=%22space+domain+awareness%22+targeting+military+contract+capability&hl=en-US&gl=US&ceid=US:en",
-        2,
-    ),
-    (
-        "Search: orbital weapons",
-        "https://news.google.com/rss/search?q=%22on-orbit+weapon%22+OR+%22orbital+weapon%22+OR+%22weapons+in+orbit%22&hl=en-US&gl=US&ceid=US:en",
-        1,
-    ),
+    ("Search: counterspace",
+     "https://news.google.com/rss/search?q=%22counterspace%22+OR+%22space+control%22+weapon+capability+deployment+procurement+strategy&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: ASAT",
+     "https://news.google.com/rss/search?q=%22anti-satellite%22+OR+ASAT+weapon+capability+deployment+procurement+test&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: co-orbital",
+     "https://news.google.com/rss/search?q=%22co-orbital%22+OR+%22proximity+operations%22+military+satellite+capability&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: space EW",
+     "https://news.google.com/rss/search?q=%22space+electronic+warfare%22+OR+%22satellite+jamming%22+OR+%22counter+communications%22+military+capability&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: space targeting",
+     "https://news.google.com/rss/search?q=%22space+domain+awareness%22+targeting+military+contract+capability&hl=en-US&gl=US&ceid=US:en", 2),
+    ("Search: orbital weapons",
+     "https://news.google.com/rss/search?q=%22on-orbit+weapon%22+OR+%22orbital+weapon%22+OR+%22weapons+in+orbit%22&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: US counterspace",
+     "https://news.google.com/rss/search?q=%22Space+Force%22+%28counterspace+OR+%22space+control%22+OR+ASAT+OR+%22electronic+warfare%22%29&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: China counterspace",
+     "https://news.google.com/rss/search?q=China+%28counterspace+OR+ASAT+OR+%22co-orbital%22+OR+%22space+weapon%22%29&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: Russia counterspace",
+     "https://news.google.com/rss/search?q=Russia+%28counterspace+OR+ASAT+OR+%22space+weapon%22+OR+%22satellite+jamming%22%29&hl=en-US&gl=US&ceid=US:en", 1),
+    ("Search: Europe counterspace",
+     "https://news.google.com/rss/search?q=Europe+%28counterspace+OR+%22space+defence%22+OR+%22space+defense%22+OR+%22space+control%22%29&hl=en-US&gl=US&ceid=US:en", 2),
 ]
+
 
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 
@@ -2776,142 +2768,216 @@ CURATED_COUNTERSPACE_FALLBACK = {
     "counterspace_score": 100,
 }
 
+def _counterspace_normalized_title(title):
+    title = html.unescape(str(title or "")).lower()
+    title = re.sub(
+        r"\s+[-–—|]\s+(spacenews|defensescoop|breaking defense|"
+        r"air & space forces|spaceflight now|reuters|the war zone|"
+        r"defense news|defence news).*$",
+        "",
+        title,
+        flags=re.I,
+    )
+    replacements = {
+        "u.s.": "us",
+        "united states": "us",
+        "space force": "spaceforce",
+        "anti satellite": "antisatellite",
+        "anti-satellite": "antisatellite",
+        "on orbit": "onorbit",
+        "on-orbit": "onorbit",
+        "co orbital": "coorbital",
+        "co-orbital": "coorbital",
+        "space control": "spacecontrol",
+        "space-control": "spacecontrol",
+    }
+    for old, new in replacements.items():
+        title = title.replace(old, new)
+    title = re.sub(r"[^a-z0-9]+", " ", title)
+    return re.sub(r"\s+", " ", title).strip()
+
+
 def _counterspace_title_tokens(title):
     stop = {
         "the","and","for","with","from","that","this","has","have","into",
-        "new","says","said","space","force","forces","us","u","s","its",
-        "their","about","after","over","more","how","why","now",
+        "new","says","said","its","their","about","after","over","more",
+        "how","why","now","will","could","would","may","space","force",
+        "forces","military","defense","defence",
     }
     return {
         token
-        for token in re.findall(r"[a-z0-9]+", str(title).lower())
+        for token in _counterspace_normalized_title(title).split()
         if len(token) > 2 and token not in stop
     }
 
 
+def _counterspace_event_cluster(item):
+    blob = (
+        f'{item.get("title","")} {item.get("summary","")}'
+    ).lower()
+
+    clusters = [
+        ("US_ONORBIT_WEAPONS", [
+            "on-orbit space control weapon",
+            "on orbit space control weapon",
+            "weapons in orbit",
+            "weapon in orbit",
+            "weapons into space",
+            "orbital weapons",
+        ]),
+        ("US_TRACKING_FUSION", [
+            "prototype new software to fuse",
+            "commercial, military space tracking",
+            "commercial military space tracking",
+            "fuse commercial",
+            "on-orbit tracking for airborne",
+            "tracking for airborne and ground",
+        ]),
+        ("MEADOWLANDS", [
+            "meadowlands",
+            "remote modular terminal",
+            "counter communications system",
+        ]),
+        ("RPO_COORBITAL", [
+            "co-orbital",
+            "coorbital",
+            "proximity operations",
+            "rendezvous and proximity",
+        ]),
+    ]
+
+    for name, phrases in clusters:
+        if any(phrase in blob for phrase in phrases):
+            return name
+    return ""
+
+
 def _counterspace_near_duplicate(candidate, selected):
-    a = _counterspace_title_tokens(candidate.get("title") or "")
-    if not a:
-        return False
+    candidate_title = _counterspace_normalized_title(
+        candidate.get("title") or ""
+    )
+    candidate_tokens = _counterspace_title_tokens(
+        candidate.get("title") or ""
+    )
+    candidate_cluster = _counterspace_event_cluster(candidate)
 
     for item in selected:
-        b = _counterspace_title_tokens(item.get("title") or "")
-        if not b:
-            continue
-        overlap = len(a & b) / max(1, len(a | b))
-        if overlap >= 0.46:
+        other_title = _counterspace_normalized_title(
+            item.get("title") or ""
+        )
+        other_tokens = _counterspace_title_tokens(
+            item.get("title") or ""
+        )
+
+        if candidate_title and candidate_title == other_title:
             return True
 
-        # Collapse the current cluster of stories all reporting the same
-        # public acknowledgement of US on-orbit space-control weapons.
-        ta = str(candidate.get("title") or "").lower()
-        tb = str(item.get("title") or "").lower()
-        cluster = [
-            "space control weapons",
-            "on-orbit space control",
-            "weapons on orbit",
-            "weapons into space",
-        ]
-        if any(x in ta for x in cluster) and any(x in tb for x in cluster):
+        other_cluster = _counterspace_event_cluster(item)
+        if (
+            candidate_cluster
+            and other_cluster
+            and candidate_cluster == other_cluster
+        ):
             return True
+
+        if candidate_title and other_title:
+            ratio = SequenceMatcher(
+                None, candidate_title, other_title
+            ).ratio()
+            if ratio >= 0.69:
+                return True
+
+        if candidate_tokens and other_tokens:
+            intersection = candidate_tokens & other_tokens
+            union = candidate_tokens | other_tokens
+            jaccard = len(intersection) / max(1, len(union))
+            if jaccard >= 0.38:
+                return True
+
+            containment = len(intersection) / max(
+                1, min(len(candidate_tokens), len(other_tokens))
+            )
+            if containment >= 0.68:
+                return True
 
     return False
 
 
+
 def get_counterspace_items(news, limit=10):
     """
-    Build a rotating Counterspace Capability Watch with up to 10 distinct stories.
+    Return up to 10 DISTINCT counterspace capability developments.
 
-    Priority:
-      1) last 30 days
-      2) then 90 days
-      3) then 180 days
-      4) then latest significant capability developments available in feeds
-
-    Stories are near-deduplicated so multiple outlets covering the same
-    announcement do not occupy several carousel slots.
+    Ten is a maximum, not a quota. If only four genuinely different
+    developments are available, the carousel shows 1/4 ... 4/4.
     """
     archive = _counterspace_archive_cached()
 
     merged = []
-    seen = set()
+    seen_exact = set()
     for item in list(news) + list(archive):
-        key = re.sub(
-            r"\W+", "", str(item.get("title") or "").lower()
-        )[:150]
-        if key and key not in seen:
-            seen.add(key)
+        norm = _counterspace_normalized_title(
+            item.get("title") or ""
+        )
+        if norm and norm not in seen_exact:
+            seen_exact.add(norm)
             merged.append(item)
 
     chosen = []
-    chosen_keys = set()
+    source_counts = defaultdict(int)
 
     def add_from(pool):
         for item in pool:
-            key = re.sub(
-                r"\W+", "", str(item.get("title") or "").lower()
-            )[:150]
-            if (
-                key
-                and key not in chosen_keys
-                and not _counterspace_near_duplicate(item, chosen)
-            ):
-                chosen.append(dict(item))
-                chosen_keys.add(key)
             if len(chosen) >= limit:
                 break
 
-    add_from(
-        _select_counterspace(
-            merged, days=30, limit=max(limit * 3, 30)
-        )
-    )
+            source = str(item.get("source") or "Unknown")
+            if source_counts[source] >= 3:
+                continue
+
+            if _counterspace_near_duplicate(item, chosen):
+                continue
+
+            chosen.append(dict(item))
+            source_counts[source] += 1
+
+    periods = [
+        (30, "30D"),
+        (90, "30–90D"),
+        (180, "30–180D"),
+        (None, "LATEST"),
+    ]
+
     window = "30D"
+    for days, label in periods:
+        if len(chosen) >= limit:
+            break
 
-    if len(chosen) < limit:
-        before = len(chosen)
-        add_from(
-            _select_counterspace(
-                merged, days=90, limit=max(limit * 4, 40)
-            )
+        pool = _select_counterspace(
+            merged,
+            days=days,
+            limit=max(80, limit * 8),
         )
-        if len(chosen) > before:
-            window = "30–90D"
+        before = len(chosen)
+        add_from(pool)
 
-    if len(chosen) < limit:
-        before = len(chosen)
-        add_from(
-            _select_counterspace(
-                merged, days=180, limit=max(limit * 5, 50)
-            )
-        )
         if len(chosen) > before:
-            window = "30–180D"
-
-    if len(chosen) < limit:
-        before = len(chosen)
-        add_from(
-            _select_counterspace(
-                merged, days=None, limit=max(limit * 6, 60)
-            )
-        )
-        if len(chosen) > before:
-            window = "LATEST"
+            window = label
 
     if not chosen:
         chosen = [dict(CURATED_COUNTERSPACE_FALLBACK)]
         window = "LATEST KNOWN"
 
-    # Try story-specific OG images in parallel. This is best-effort and
-    # cached; failures fall back to RSS image or the internal visual.
     missing = [
         (idx, item.get("link") or "")
-        for idx, item in enumerate(chosen[:limit])
+        for idx, item in enumerate(chosen)
         if not item.get("image") and item.get("link")
     ]
 
     if missing:
-        with ThreadPoolExecutor(max_workers=min(5, len(missing))) as pool:
+        with ThreadPoolExecutor(
+            max_workers=min(5, len(missing))
+        ) as pool:
             futures = {
                 pool.submit(article_og_image, link): idx
                 for idx, link in missing
@@ -3411,8 +3477,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = ROTATING CAPABILITY WATCH · DIRECT + SEARCH RSS · UP TO 10 STORIES</span>'
-        '<span>v0.9.0 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = DISTINCT STORIES · UP TO 10 · NO DUPLICATE PADDING</span>'
+        '<span>v0.9.1 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
