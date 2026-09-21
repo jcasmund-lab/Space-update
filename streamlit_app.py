@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.9.2 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.3 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -2552,6 +2552,89 @@ def article_og_image(url):
     return ""
 
 
+def _normalize_story_image_url(url):
+    if not url:
+        return ""
+    low = html.unescape(str(url)).strip().lower()
+    low = re.sub(r"^https?://", "", low)
+    low = low.split("#", 1)[0]
+    low = low.split("?", 1)[0]
+    return low
+
+
+def _is_generic_story_image(url):
+    """
+    Reject obvious low-value visuals such as logos, icons, favicons,
+    placeholder/social cards and repeated generic publisher images.
+    """
+    low = _normalize_story_image_url(url)
+    if not low:
+        return True
+
+    bad_terms = [
+        "logo", "logos", "icon", "icons", "favicon",
+        "apple-touch", "site-logo", "siteicon", "wordmark",
+        "branding", "brand-", "placeholder", "default-image",
+        "default-", "avatar", "social-share", "social_card",
+        "newsletter", "banner", "header", "sprite",
+    ]
+    if any(term in low for term in bad_terms):
+        return True
+
+    # Common aggregator / generic-art hosts that often provide low-value visuals.
+    bad_hosts = [
+        "news.google.com",
+        "gstatic.com",
+        "googleusercontent.com",
+        "gravatar.com",
+    ]
+    if any(host in low for host in bad_hosts):
+        return True
+
+    # A few publishers repeatedly expose a generic site image instead of
+    # article-specific art. Better to fall back to the internal visual.
+    generic_publishers = [
+        "techtimes.com",
+        "tech-times.com",
+    ]
+    if any(host in low for host in generic_publishers):
+        return True
+
+    return False
+
+
+def _clean_story_images(items):
+    """
+    Remove generic images and remove any repeated image URL across the watch.
+    If the same image appears in multiple stories, all of those slides fall
+    back to the internal thematic visual.
+    """
+    counts = {}
+    norms = []
+
+    for item in items:
+        norm = _normalize_story_image_url(item.get("image") or "")
+        norms.append(norm)
+        if norm:
+            counts[norm] = counts.get(norm, 0) + 1
+
+    cleaned = []
+    for item, norm in zip(items, norms):
+        item = dict(item)
+        image = item.get("image") or ""
+
+        if (
+            not image
+            or _is_generic_story_image(image)
+            or counts.get(norm, 0) > 1
+        ):
+            item["image"] = ""
+
+        cleaned.append(item)
+
+    return cleaned
+
+
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def _military_space_archive_cached():
@@ -2958,6 +3041,8 @@ def get_counterspace_items(news, limit=10):
                         chosen[idx]["image"] = image
                 except Exception:
                     pass
+
+    chosen = _clean_story_images(chosen)
 
     return chosen[:limit], window
 
@@ -3476,8 +3561,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · UP TO 10 DISTINCT STORIES</span>'
-        '<span>v0.9.2 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · DISTINCT STORIES · GENERIC/REPEATED IMAGES SUPPRESSED</span>'
+        '<span>v0.9.3 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
