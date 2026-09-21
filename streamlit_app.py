@@ -16,7 +16,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.8.4 · NORDIC CONTRAST · COUNTERSPACE 30D + FULL LAUNCH IMAGE
+# SPACE UPDATE v0.8.5 · NORDIC CONTRAST · COUNTERSPACE CAPABILITY WATCH
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -57,6 +57,14 @@ NEWS_FEEDS = [
     ("EUSPA", "https://www.euspa.europa.eu/pressroom/press-releases/rss.xml", 3),
     ("JPL", "https://www.jpl.nasa.gov/feeds/news/", 4),
 ]
+COUNTERSPACE_FEEDS = [
+    # Space / defence acquisition and capability sources.
+    ("SpaceNews", "https://spacenews.com/feed/", 0),
+    ("DefenseScoop", "https://defensescoop.com/feed/", 0),
+    ("Breaking Defense", "https://feeds.feedburner.com/BreakingDefense", 1),
+    ("Spaceflight Now", "https://spaceflightnow.com/feed/", 2),
+]
+
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 
 ACTOR_COLOURS = {
@@ -593,10 +601,10 @@ def _news_cached():
         return out
 
     items = []
-    with ThreadPoolExecutor(max_workers=len(NEWS_FEEDS)) as pool:
+    with ThreadPoolExecutor(max_workers=len(COUNTERSPACE_FEEDS)) as pool:
         futures = [
             pool.submit(parse_feed, source, url, priority)
-            for source, url, priority in NEWS_FEEDS
+            for source, url, priority in COUNTERSPACE_FEEDS
         ]
         for future in as_completed(futures):
             try:
@@ -2330,7 +2338,6 @@ def featured_launch_slideshow_v08(recent):
         slides.append(
             f"""
             <div class="slide s{i}">
-              <img class="bg" src="{esc(url)}" alt="">
               <img class="fg" src="{esc(url)}" alt="{esc(launch.get("name"))}">
               <div class="shade"></div>
               <div class="credit">{esc(credit)}</div>
@@ -2360,8 +2367,7 @@ def featured_launch_slideshow_v08(recent):
       body{{margin:0;background:transparent;font-family:Inter,Segoe UI,Arial,sans-serif;}}
       .frame{{height:176px;border:1px solid #C6D3D7;border-radius:9px;overflow:hidden;position:relative;background:#D7E0E2;}}
       .slide{{position:absolute;inset:0;opacity:0;animation:fade {total_duration}s linear infinite;overflow:hidden;}}
-      .slide .bg{{position:absolute;inset:-12px;width:calc(100% + 24px);height:calc(100% + 24px);object-fit:cover;filter:blur(12px);opacity:.36;transform:scale(1.04);}}
-      .slide .fg{{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;}}
+      .slide .fg{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;}}
       .shade{{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.00) 42%,rgba(9,22,28,.80) 100%);}}
       .caption{{position:absolute;left:12px;right:12px;bottom:9px;color:#F5F7F6;}}
       .cap-title{{font-size:13px;font-weight:780;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
@@ -2383,83 +2389,131 @@ def featured_launch_slideshow_v08(recent):
 # 07B · COUNTERSPACE WATCH
 # ============================================================
 
-COUNTERSPACE_TERMS = {
-    # High-confidence terms
-    "counterspace": 10,
-    "anti-satellite": 10,
-    "antisatellite": 10,
-    "asat": 10,
-    "space weapon": 9,
+COUNTERSPACE_CORE_TERMS = {
+    "counterspace": 12,
+    "counter-space": 12,
+    "space control": 12,
+    "space-control": 12,
+    "space weapon": 12,
+    "space weapons": 12,
+    "weapon in orbit": 12,
+    "weapons in orbit": 12,
+    "on-orbit weapon": 12,
+    "on-orbit weapons": 12,
+    "orbital weapon": 12,
+    "orbital weapons": 12,
+    "anti-satellite": 12,
+    "antisatellite": 12,
+    "asat": 12,
     "co-orbital": 9,
     "coorbital": 9,
-    "rendezvous and proximity": 9,
-    "proximity operation": 9,
-    "proximity operations": 9,
-    "rpo": 8,
-    "satellite jamming": 10,
-    "satcom jamming": 10,
-    "gnss jamming": 10,
-    "gps jamming": 10,
-    "gnss spoofing": 10,
-    "gps spoofing": 10,
-    "satellite interference": 9,
-    "laser dazzling": 10,
-    "dazzling": 8,
-    "directed energy": 8,
-    "electronic warfare": 7,
-    "space electronic warfare": 9,
-    "satellite cyber": 9,
-    "satellite cyberattack": 10,
+    "proximity operations": 8,
+    "proximity operation": 8,
+    "rendezvous and proximity": 8,
+    "space electronic warfare": 10,
+    "satellite jamming": 9,
+    "satcom jamming": 9,
+    "directed energy": 9,
+    "laser dazzling": 9,
+}
 
-    # Supporting terms; these only become useful when paired with
-    # satellite/space context below.
-    "jamming": 5,
-    "spoofing": 5,
-    "interference": 4,
-    "maneuver": 3,
-    "manoeuvre": 3,
-    "rendezvous": 4,
-    "laser": 4,
-    "cyber": 3,
-    "debris": 3,
+CAPABILITY_ACTION_TERMS = {
+    "deploy": 7,
+    "deployed": 8,
+    "deployment": 7,
+    "field": 6,
+    "fielded": 8,
+    "fielding": 7,
+    "procure": 7,
+    "procurement": 8,
+    "acquisition": 8,
+    "acquire": 7,
+    "contract": 6,
+    "award": 6,
+    "selected": 4,
+    "strategy": 7,
+    "strategic": 4,
+    "doctrine": 7,
+    "framework": 6,
+    "policy": 4,
+    "budget": 5,
+    "funding": 5,
+    "investment": 5,
+    "develop": 4,
+    "developing": 4,
+    "demonstration": 5,
+    "demonstrate": 5,
+    "test": 4,
+    "exercise": 4,
+    "operational": 5,
+    "capability": 5,
+    "system": 3,
+    "unit": 3,
+    "squadron": 4,
+}
+
+COUNTERSPACE_DOWNRANK = {
+    # Useful resilience/PNT stories, but not the capability-watch product
+    # the user wants in this box.
+    "osnma": -20,
+    "authentication service": -15,
+    "civil navigation": -10,
+    "resilience service": -8,
+    "interference monitoring": -6,
 }
 
 
 def counterspace_score(item):
+    """
+    Score developments in counterspace CAPABILITY, not routine interference events.
+
+    A strong result normally needs BOTH:
+      - a counterspace / space-control concept; and
+      - a capability action: deployment, procurement, strategy, fielding,
+        testing, funding, acquisition, organisation, etc.
+    """
     title = str(item.get("title") or "")
-    summary = re.sub(
-        r"<[^>]+>", " ", str(item.get("summary") or "")
-    )
+    summary = re.sub(r"<[^>]+>", " ", str(item.get("summary") or ""))
     low = f"{title} {summary}".lower()
 
-    score = 0
-    for term, points in COUNTERSPACE_TERMS.items():
+    core_score = 0
+    for term, points in COUNTERSPACE_CORE_TERMS.items():
         if term in low:
-            score += points
+            core_score += points
 
-    # Generic terms should not turn unrelated terrestrial EW/cyber stories
-    # into counterspace items.
-    space_context = any(
-        term in low
-        for term in [
-            "satellite", "space", "gnss", "gps", "orbit",
-            "starlink", "galileo", "satcom",
+    action_score = 0
+    for term, points in CAPABILITY_ACTION_TERMS.items():
+        if term in low:
+            action_score += points
+
+    # Strong explicit phrases such as "weapons in orbit" are inherently
+    # capability developments even if the headline contains no procurement verb.
+    explicit_capability = any(
+        phrase in low
+        for phrase in [
+            "space control weapons",
+            "space-control weapons",
+            "weapons in orbit",
+            "weapon in orbit",
+            "on-orbit weapons",
+            "on-orbit weapon",
+            "orbital weapons",
+            "orbital weapon",
+            "anti-satellite weapon",
+            "counterspace capability",
+            "counter-space capability",
         ]
     )
-    high_confidence = any(
-        term in low
-        for term in [
-            "counterspace", "anti-satellite", "antisatellite", "asat",
-            "co-orbital", "coorbital", "proximity operation",
-            "gnss jamming", "gps jamming", "satellite jamming",
-            "gnss spoofing", "gps spoofing", "laser dazzling",
-        ]
-    )
 
-    if not space_context and not high_confidence:
-        score = 0
+    if not explicit_capability and (core_score == 0 or action_score == 0):
+        return 0
 
-    # Freshness bonus
+    score = core_score + action_score
+
+    for term, penalty in COUNTERSPACE_DOWNRANK.items():
+        if term in low:
+            score += penalty
+
     dt = item.get("date")
     if dt:
         age_hours = (
@@ -2468,12 +2522,12 @@ def counterspace_score(item):
         ).total_seconds() / 3600
         if age_hours <= 24:
             score += 3
-        elif age_hours <= 72:
-            score += 2
         elif age_hours <= 168:
+            score += 2
+        elif age_hours <= 720:
             score += 1
 
-    return score
+    return max(0, score)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -2653,35 +2707,56 @@ def _select_counterspace(pool, days=None, limit=2):
     return candidates[:limit]
 
 
+CURATED_COUNTERSPACE_FALLBACK = {
+    "source": "DefenseScoop",
+    "title": "Space Force has deployed space control weapons to orbit",
+    "link": "https://defensescoop.com/2026/09/14/meink-space-force-has-deployed-space-control-weapons-to-orbit/",
+    "date": datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc),
+    "summary": (
+        "U.S. Air Force Secretary Troy Meink publicly confirmed that the "
+        "U.S. Space Force has on-orbit space-control weapons. Specific "
+        "systems and numbers were not disclosed."
+    ),
+    "image": "",
+    "counterspace_score": 100,
+}
+
 def get_counterspace_items(news, limit=2):
     """
-    Returns (items, window_label).
-
-    7D -> 30D -> latest significant item -> baseline card.
+    Capability-watch priority:
+      1) significant capability development within 30 days
+      2) within 90 days
+      3) latest significant development available in capability feeds
+      4) curated, dated fallback (never an unrelated counterspace event)
     """
-    items = _select_counterspace(news, days=7, limit=limit)
+    archive = _counterspace_archive_cached()
+
+    merged = []
+    seen = set()
+    for item in list(news) + list(archive):
+        key = re.sub(
+            r"\W+", "", str(item.get("title") or "").lower()
+        )[:150]
+        if key and key not in seen:
+            seen.add(key)
+            merged.append(item)
+
+    items = _select_counterspace(merged, days=30, limit=limit)
     if items:
-        window = "7D"
+        window = "30D"
     else:
-        archive = _counterspace_archive_cached()
-
-        merged = []
-        seen = set()
-        for item in list(news) + list(archive):
-            key = re.sub(
-                r"\W+", "", str(item.get("title") or "").lower()
-            )[:150]
-            if key and key not in seen:
-                seen.add(key)
-                merged.append(item)
-
-        items = _select_counterspace(merged, days=30, limit=limit)
+        items = _select_counterspace(merged, days=90, limit=limit)
         if items:
-            window = "30D"
+            window = "90D"
         else:
             items = _select_counterspace(merged, days=None, limit=limit)
-            window = "LATEST" if items else "BASELINE"
+            if items:
+                window = "LATEST"
+            else:
+                items = [dict(CURATED_COUNTERSPACE_FALLBACK)]
+                window = "LATEST KNOWN"
 
+    # Best-effort hero image. Cached and short-timeout.
     if items and not items[0].get("image"):
         items[0]["image"] = article_og_image(
             items[0].get("link") or ""
@@ -2695,17 +2770,25 @@ def counterspace_type(item):
         f'{item.get("title","")} {item.get("summary","")}'
     ).lower()
 
-    if any(x in text_blob for x in ["jamming", "spoofing", "interference", "electronic warfare"]):
-        return "EW / INTERFERENCE"
-    if any(x in text_blob for x in ["co-orbital", "coorbital", "proximity", "rendezvous", "rpo"]):
-        return "ON-ORBIT ACTIVITY"
-    if any(x in text_blob for x in ["anti-satellite", "antisatellite", "asat", "kinetic"]):
-        return "ASAT / KINETIC"
-    if any(x in text_blob for x in ["laser", "dazzling", "directed energy"]):
-        return "DIRECTED ENERGY"
-    if "cyber" in text_blob:
-        return "CYBER"
-    return "COUNTERSPACE"
+    if any(x in text_blob for x in ["deployed", "deployment", "fielded", "fielding", "on-orbit weapon", "weapons in orbit"]):
+        return "FIELDING / DEPLOYMENT"
+
+    if any(x in text_blob for x in ["procurement", "acquisition", "contract", "award", "selected", "buy", "purchase"]):
+        return "ACQUISITION"
+
+    if any(x in text_blob for x in ["strategy", "doctrine", "framework", "policy"]):
+        return "STRATEGY / DOCTRINE"
+
+    if any(x in text_blob for x in ["demonstration", "demonstrate", "test", "exercise"]):
+        return "TEST / DEMONSTRATION"
+
+    if any(x in text_blob for x in ["budget", "funding", "investment"]):
+        return "INVESTMENT"
+
+    if any(x in text_blob for x in ["unit", "squadron", "organization", "organisation", "office"]):
+        return "ORGANISATION"
+
+    return "CAPABILITY DEVELOPMENT"
 
 
 def render_counterspace_watch(news):
@@ -2713,7 +2796,7 @@ def render_counterspace_watch(news):
 
     raw_html(
         '<div class="counter-head">'
-        '<div class="counter-title">COUNTERSPACE WATCH</div>'
+        '<div class="counter-title">COUNTERSPACE CAPABILITY WATCH</div>'
         f'<div class="counter-period">OPEN SOURCE · {esc(window)}</div>'
         '</div>'
     )
@@ -2722,9 +2805,9 @@ def render_counterspace_watch(news):
         raw_html(
             '<div class="counter-baseline">'
             '<div class="counter-baseline-title">'
-            'NO SIGNIFICANT EVENT IDENTIFIED · 30D'
+            'NO NEW CAPABILITY DEVELOPMENT IDENTIFIED'
             '</div>'
-            '<div class="counter-baseline-sub">Persistent watch areas</div>'
+            '<div class="counter-baseline-sub">Capability areas to watch</div>'
             '<div class="counter-baseline-grid">'
             '<div class="counter-baseline-chip">EW / JAMMING</div>'
             '<div class="counter-baseline-chip">GNSS SPOOFING</div>'
@@ -2927,8 +3010,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = OPEN-SOURCE WATCH · 7D → 30D</span>'
-        '<span>v0.8.4 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · COUNTERSPACE = CAPABILITY WATCH · OPEN SOURCE · 30D → 90D</span>'
+        '<span>v0.8.5 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
