@@ -1,4 +1,6 @@
+import csv
 import html
+import io
 import json
 import re
 import time
@@ -18,7 +20,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ============================================================
-# SPACE UPDATE v0.9.5 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
+# SPACE UPDATE v0.9.6 · NORDIC CONTRAST · FOCUSED EUROPE + COUNTERSPACE VISUAL
 # 16:9 information display for 24–40" monitors
 #
 # LOCKED CORE FEATURES
@@ -27,7 +29,7 @@ import streamlit.components.v1 as components
 # - launches + new orbital objects (24h / 7d)
 # - Europe capability picture
 # - all European launch actors
-# - global activity map + compact orbit summary + What Changed?
+# - global activity map + SATCAT orbital inventory + What Changed?
 # - next launches with spaceport
 # - featured launch imagery
 # - global rolling news ticker
@@ -1328,28 +1330,74 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 }
 .orbit-strip {
     display:grid;
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(3, minmax(0,1fr));
     gap:6px;
-    margin-top:3px;
+    margin-top:4px;
 }
-.orbit-pill {
-    background:#F0F5F6;
-    border:1px solid #D2DDE0;
+.orbit-card {
+    border:1px solid #CDD9DE;
+    background:#FFFFFF;
+    border-top:3px solid #77A9C4;
     border-radius:8px;
-    padding:6px 8px;
+    padding:7px 9px;
+    min-width:0;
+    box-shadow:0 1px 1px rgba(20,47,57,.035);
+}
+.orbit-meo {border-top-color:#6D9E95;}
+.orbit-geo {border-top-color:#C8A66F;}
+.orbit-heading {
     display:flex;
-    align-items:center;
     justify-content:space-between;
+    align-items:baseline;
+    gap:5px;
+    min-width:0;
+    color:#284953;
 }
-.orbit-pill-name {
-    color:#5D747E;
-    font-size:9px;
-    font-weight:800;
+.orbit-heading b {font-size:11px;letter-spacing:.06em;}
+.orbit-heading span {
+    color:#7B9097;
+    font-size:7.5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
-.orbit-pill-count {
-    color:#18333D;
-    font-size:18px;
+.orbit-key {
+    color:#6B8790;
+    font-size:8px;
     font-weight:800;
+    letter-spacing:.055em;
+    margin-top:5px;
+}
+.orbit-primary {
+    color:#17343D;
+    font-size:clamp(23px, 1.5vw, 29px);
+    line-height:1.05;
+    font-weight:820;
+    margin:3px 0 5px;
+    font-variant-numeric:tabular-nums;
+}
+.orbit-secondary {
+    display:flex;
+    flex-wrap:wrap;
+    gap:5px 10px;
+    border-top:1px solid #E1E9EB;
+    padding-top:5px;
+    color:#617B84;
+    font-size:8px;
+    font-weight:700;
+}
+.orbit-secondary strong {
+    color:#203F48;
+    font-size:10.5px;
+    margin-left:3px;
+    font-variant-numeric:tabular-nums;
+}
+.orbit-footnote {
+    margin-top:4px;
+    margin-bottom:1px;
+    font-size:7px;
+    color:#7A8D95;
+    letter-spacing:.02em;
 }
 
 /* ----------------------------------------------------------
@@ -2108,20 +2156,176 @@ def activity_map(recent, news):
         '</div>'
     )
 
+# ============================================================
+# 07A · ORBITAL INVENTORY (CelesTrak SATCAT)
+#
+# This is an inventory, NOT a sum of recent launch destinations.
+# CelesTrak's modern bulk CSV includes six-digit catalog numbers.
+# Download ONCE per 24 hours (per CelesTrak usage guidance) and
+# never substitute an invented or old total on first load.
+# ============================================================
+
+CELESTRAK_SATCAT_BULK = "https://celestrak.org/pub/satcat.csv"
+ORBIT_CACHE_SECONDS = 24 * 60 * 60
+ACTIVE_SATCAT_STATUSES = {"+", "P", "B", "S", "X"}
+
+
+def _orbit_band(perigee, apogee):
+    """Classify by BOTH apsidal altitudes (km), not launch destination.
+
+    Deliberately exclude transfer, highly elliptical, and boundary-crossing
+    orbits. GEO here covers near-geosynchronous Earth orbits, regardless of
+    inclination; it does not mean every object is geostationary.
+    """
+    try:
+        low, high = float(perigee), float(apogee)
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= low <= high):
+        return None
+    if high < 2000:
+        return "LEO"
+    if low >= 2000 and high < 34000:
+        return "MEO"
+    if 34000 <= low and high <= 38000 and (high - low) <= 2500:
+        return "GEO"
+    return None
+
+
+def _parse_satcat_orbit_inventory(csv_text, at=None):
+    """Derive on-orbit counts solely from published catalog fields.
+
+    'new_7d' means catalogued objects launched during the latest 7 UTC
+    calendar days; not the number of objects newly catalogued this week.
+    """
+    at = at or datetime.now(timezone.utc)
+    cutoff = at.date() - timedelta(days=6)
+    reader = csv.DictReader(io.StringIO(csv_text.lstrip("\ufeff")))
+    required = {"OBJECT_TYPE", "OPS_STATUS_CODE", "DECAY_DATE",
+                "PERIGEE", "APOGEE", "LAUNCH_DATE"}
+    if not reader.fieldnames or not required.issubset(set(reader.fieldnames)):
+        raise ValueError("CelesTrak SATCAT CSV columns are missing")
+
+    result = {band: {"active": 0, "objects": 0, "new_7d": 0}
+              for band in ("LEO", "MEO", "GEO")}
+    on_orbit = 0
+    unassigned = 0
+    for row in reader:
+        # Entries without a decay date are the on-orbit population. Limit to
+        # Earth-orbit entries, not lunar or heliocentric objects.
+        if (row.get("DECAY_DATE") or "").strip():
+            continue
+        centre = (row.get("ORBIT_CENTER") or "EA").strip().upper()
+        orbit_type = (row.get("ORBIT_TYPE") or "ORB").strip().upper()
+        if centre not in ("EA", "EARTH", "") or orbit_type not in ("ORB", ""):
+            continue
+        on_orbit += 1
+        band = _orbit_band(row.get("PERIGEE"), row.get("APOGEE"))
+        if not band:
+            unassigned += 1
+            continue
+
+        vals = result[band]
+        vals["objects"] += 1
+        is_payload = (row.get("OBJECT_TYPE") or "").strip().upper() == "PAY"
+        status = (row.get("OPS_STATUS_CODE") or "").strip().upper()
+        if is_payload and status in ACTIVE_SATCAT_STATUSES:
+            vals["active"] += 1
+
+        launch = (row.get("LAUNCH_DATE") or "").strip()
+        if launch:
+            try:
+                date = datetime.fromisoformat(launch[:10]).date()
+                if cutoff <= date <= at.date():
+                    vals["new_7d"] += 1
+            except ValueError:
+                pass
+
+    # Reject empty HTML/rate-limit pages and truncated pseudo-CSV responses.
+    # The normal inventory contains tens of thousands of objects. Unit-test
+    # fixtures exercise the pure parser directly, not this network guard.
+    return {"orbits": result, "on_orbit": on_orbit,
+            "unassigned": unassigned,
+            "sampled_at": at.isoformat(), "source": "CelesTrak SATCAT"}
+
+
+@st.cache_data(ttl=ORBIT_CACHE_SECONDS, max_entries=1, show_spinner=False)
+def _orbital_inventory_daily():
+    """One CelesTrak bulk request per daily cache window."""
+    with requests.Session() as session:
+        response = session.get(
+            CELESTRAK_SATCAT_BULK, headers=HEADERS,
+            timeout=(3.0, 12.0),
+        )
+        response.raise_for_status()
+        snapshot = _parse_satcat_orbit_inventory(response.text)
+    if snapshot["on_orbit"] < 10000:
+        raise ValueError("Unusually small SATCAT response; ignoring snapshot")
+    return snapshot
+
+
+def get_orbital_inventory():
+    """Fail soft. Keep last good result on this Streamlit worker/session."""
+    memo = st.session_state.setdefault("_orbit_inventory_memo", {})
+    now = time.time()
+    if memo.get("retry_after", 0) > now:
+        return memo.get("last_good"), bool(memo.get("last_good"))
+    try:
+        result = _orbital_inventory_daily()
+        memo["last_good"] = result
+        memo["retry_after"] = 0
+        return result, True
+    except Exception:
+        # Do not lock up the TV if the catalogue is temporarily unavailable.
+        memo["retry_after"] = now + 600
+        return memo.get("last_good"), False
+
+
 def orbit_summary(recent):
-    counts = defaultdict(int)
-    for launch in recent:
-        counts[orbit_group(launch)] += 1
-    raw_html(
-        '<div class="orbit-strip">'
-        f'<div class="orbit-pill"><span class="orbit-pill-name">LEO / SSO</span>'
-        f'<span class="orbit-pill-count">{counts["LEO"]}</span></div>'
-        f'<div class="orbit-pill"><span class="orbit-pill-name">MEO</span>'
-        f'<span class="orbit-pill-count">{counts["MEO"]}</span></div>'
-        f'<div class="orbit-pill"><span class="orbit-pill-name">GEO / GTO</span>'
-        f'<span class="orbit-pill-count">{counts["GEO"]}</span></div>'
-        '</div>'
-    )
+    """Compact, readable inventory under the global map, 24-inch first."""
+    inventory, fresh = get_orbital_inventory()
+    cards = []
+    for band, subtitle in (
+        ("LEO", "&lt; 2,000 km"),
+        ("MEO", "2,000–34,000 km"),
+        ("GEO", "GEO / GSO region"),
+    ):
+        values = inventory["orbits"][band] if inventory else None
+        active = fmt(values["active"]) if values else "—"
+        objects = fmt(values["objects"]) if values else "—"
+        new = f'+{fmt(values["new_7d"])}' if values else "—"
+        cards.append(
+            f'<div class="orbit-card orbit-{band.lower()}">'
+            f'<div class="orbit-heading"><b>{band}</b>'
+            f'<span>{subtitle}</span></div>'
+            f'<div class="orbit-key">ACTIVE SATELLITES</div>'
+            f'<div class="orbit-primary">{active}</div>'
+            f'<div class="orbit-secondary">'
+            f'<span>ALL OBJECTS <strong>{objects}</strong></span>'
+            f'<span>NEW · 7D <strong>{new}</strong></span>'
+            f'</div></div>'
+        )
+    raw_html('<div class="orbit-strip">' + ''.join(cards) + '</div>')
+    if inventory:
+        try:
+            stamp = datetime.fromisoformat(inventory["sampled_at"])
+            updated = stamp.astimezone(LOCAL_TZ).strftime("%d %b %H:%M")
+        except (TypeError, ValueError):
+            updated = "last successful snapshot"
+        stale = " · STALE" if not fresh else ""
+        raw_html(
+            '<div class="orbit-footnote">'
+            f'CELESTRAK SATCAT · {updated}{stale} · '
+            'NEW = CATALOGUED OBJECTS LAUNCHED IN 7 UTC DAYS · '
+            'HEO / TRANSFER / UNKNOWN EXCLUDED'
+            '</div>'
+        )
+    else:
+        raw_html(
+            '<div class="orbit-footnote">CELESTRAK DAILY SNAPSHOT UNAVAILABLE · '
+            'AUTOMATIC RETRY · NO ESTIMATED TOTALS</div>'
+        )
+
 
 
 def europe_live_totals():
@@ -3633,6 +3837,7 @@ def render_dashboard():
                 '<div class="panel-note">LAUNCHES + IMPORTANT NEWS · 7D</div></div>'
             )
             activity_map(recent, news)
+            raw_html('<div class="section-row"><div class="section-title">ORBITAL INVENTORY</div><div class="source-note">ACTIVE · TOTAL · NEW</div></div>')
             orbit_summary(recent)
 
             raw_html(
@@ -3655,8 +3860,8 @@ def render_dashboard():
 
     raw_html(
         '<div class="footerline">'
-        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · STRICT SPACE-TITLE FILTER · GENERIC IMAGES SUPPRESSED</span>'
-        '<span>v0.9.5 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
+        '<span>AUTO · LAUNCH LIBRARY 2 · CELESTRAK SATCAT DAILY · SpaceNews · Spaceflight Now · ESA · EUSPA · JPL · MILITARY SPACE WATCH · STRICT SPACE-TITLE FILTER · GENERIC IMAGES SUPPRESSED</span>'
+        '<span>v0.9.6 Nordic Contrast · 16:9 · 24–40&quot; · refresh 15 min</span>'
         '</div>'
     )
 
